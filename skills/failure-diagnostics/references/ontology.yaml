@@ -1,0 +1,247 @@
+# Web Failure Ontology — Knowledge Base
+#
+# Consumed by skills/failure-diagnostics/SKILL.md. Each entry maps a set of
+# machine-observable `signals` (emitted by website-observer, crawl-render-audit,
+# content-cleaner, and query-guided-discovery) to a named failure mode with a
+# severity, a recovery strategy (the sub-skill/technique that resolves or
+# further investigates it), and the exact finding title to use verbatim in
+# the final audit report.
+#
+# To add a new failure mode: append an entry under the correct category with
+# all required fields populated. No pipeline code changes are needed — this
+# file is read at runtime.
+
+ontology_version: "1.1"
+
+categories:
+  rendering_and_execution:
+    label: "Rendering & Execution Failures"
+    description: >
+      The page's HTML exists on the server, but its content is invisible to
+      static or standard HTTP GET parsers because it depends on client-side
+      execution or user interaction.
+
+  content_noise:
+    label: "Content Noise & Layout Distortions"
+    description: >
+      Content is retrieved, but it is buried under irrelevant elements or
+      corrupted by unstructured formatting.
+
+  discovery_and_pathing:
+    label: "Crawl Discovery & Pathing Failures"
+    description: >
+      The target answer or required context is split across pages, or is
+      hidden from crawler navigation entirely.
+
+  semantic_deficit:
+    label: "Semantic Deficit & Data Integrity"
+    description: >
+      Extracted text is deceptive, missing machine-readable markers, or
+      ambiguous with respect to canonical identity.
+
+  compliance_and_access:
+    label: "Compliance & Access Governance"
+    description: >
+      Hard boundaries where extraction is restricted, throttled, or legally
+      blocked. These findings must never be "worked around" — only reported.
+
+failure_modes:
+
+  # ---------------------------------------------------------------------
+  # 1. Rendering & Execution Failures
+  # ---------------------------------------------------------------------
+
+  APP_SHELL_EMPTY_DOM:
+    category: rendering_and_execution
+    severity: high
+    signals: [low_raw_text, high_script_count, root_container_detected]
+    description: >
+      Page relies heavily on Client-Side Rendering (CSR). The initial HTTP
+      payload returns an essentially empty container element.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright
+    audit_finding_title: "JavaScript-Heavy Rendering Hides Content From Static Crawlers"
+
+  LAZY_LOAD_TRIGGER_REQUIRED:
+    category: rendering_and_execution
+    severity: medium
+    signals: [data_src_attribute_present, missing_lower_page_dom_nodes]
+    description: >
+      Content only injects into the DOM upon viewport intersection or
+      scroll events, so a non-scrolling crawler never sees it.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright_scroll_driver
+    audit_finding_title: "Lazy-Loaded Content Requires Scroll Interaction To Appear"
+
+  SHADOW_DOM_ENCAPSULATION:
+    category: rendering_and_execution
+    severity: medium
+    signals: [custom_element_tags_present, shadow_root_text_missing]
+    description: >
+      Elements are hidden behind open or closed Shadow DOM boundaries that
+      standard CSS/XPath selectors do not pierce.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright_shadow_root_traversal
+    audit_finding_title: "Shadow DOM Encapsulation Hides Content From Standard Selectors"
+
+  DYNAMIC_INTERACTION_BARRIER:
+    category: rendering_and_execution
+    severity: medium
+    signals: [tab_role_present, accordion_trigger_present, load_more_button_present, multistep_pagination_present]
+    description: >
+      Essential data is hidden behind required UI events — tab switches,
+      accordion expansion, "Load More" clicks, or multi-step pagination.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright_interaction_driver
+    audit_finding_title: "Essential Content Is Gated Behind Required UI Interactions"
+
+  # ---------------------------------------------------------------------
+  # 2. Content Noise & Layout Distortions
+  # ---------------------------------------------------------------------
+
+  HIGH_BOILERPLATE_DENSITY:
+    category: content_noise
+    severity: medium
+    signals: [low_main_text_ratio, high_nav_footer_density]
+    description: >
+      Real content is drowned out by navigation links, site footers, and
+      sidebars, lowering the signal-to-noise ratio for any extractor.
+    recovery_strategy: content-cleaner
+    recommended_tool: readability_parser
+    audit_finding_title: "High Noise-to-Content Ratio Obstructs Data Extraction"
+
+  MODAL_INTERRUPT_OVERLAY:
+    category: content_noise
+    severity: medium
+    signals: [high_z_index_overlay_present, body_overflow_hidden, cookie_banner_detected]
+    description: >
+      An overlay (cookie banner, newsletter modal, paywall interstitial)
+      covers the viewport or blocks proper rendering and readability.
+    recovery_strategy: content-cleaner
+    recommended_tool: overlay_stripper
+    audit_finding_title: "Modal/Overlay Interrupts Obstruct Page Content"
+
+  GENERIC_DIV_SOUP:
+    category: content_noise
+    severity: low
+    signals: [zero_semantic_tags, nested_div_span_only]
+    description: >
+      Complete lack of structural hierarchy (no <article>, <section>,
+      heading tags) makes document parsing and LLM chunking unreliable.
+    recovery_strategy: content-cleaner
+    recommended_tool: visual_layout_reconstruction
+    audit_finding_title: "Absent Semantic HTML Structure Undermines Reliable Parsing"
+
+  # ---------------------------------------------------------------------
+  # 3. Crawl Discovery & Pathing Failures
+  # ---------------------------------------------------------------------
+
+  JAVASCRIPT_NAVIGATION_TRAP:
+    category: discovery_and_pathing
+    severity: high
+    signals: [onclick_div_navigation, javascript_void_href]
+    description: >
+      Links use `<div onclick="...">` or `href="javascript:void(0)"`
+      instead of standard `<a href="...">`, so static link extractors find
+      no outgoing internal URLs.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: network_call_interception
+    audit_finding_title: "Non-Standard Navigation Links Are Invisible To Crawlers"
+
+  DISTRIBUTED_INFORMATION_FRAGMENTATION:
+    category: discovery_and_pathing
+    severity: medium
+    signals: [partial_answer_match, high_internal_link_density]
+    description: >
+      The answer to a likely user/AI query requires aggregating facts
+      scattered across multiple internal subpages (e.g. /features,
+      /pricing) rather than being answerable from one page.
+    recovery_strategy: query-guided-discovery
+    recommended_tool: link_relevance_ranker
+    audit_finding_title: "Information Fragmented Across Multiple Subpages"
+
+  ORPHANED_PAGE_NO_SITEMAP:
+    category: discovery_and_pathing
+    severity: medium
+    signals: [zero_incoming_internal_links, absent_from_sitemap]
+    description: >
+      The page is isolated from the main site topology — unreachable via
+      normal crawl traversal or sitemap enumeration.
+    recovery_strategy: query-guided-discovery
+    recommended_tool: sitemap_and_search_pivot
+    audit_finding_title: "Orphaned Page Is Unreachable Via Sitemap Or Internal Links"
+
+  # ---------------------------------------------------------------------
+  # 4. Semantic Deficit & Data Integrity
+  # ---------------------------------------------------------------------
+
+  SOFT_404_MISDIRECTION:
+    category: semantic_deficit
+    severity: high
+    signals: [http_200_status, error_phrase_in_body]
+    description: >
+      Client-side router returns a `200 OK` while serving a "Page Not
+      Found"/"Item Unavailable" UI, deceiving status-code-only crawlers.
+    recovery_strategy: website-observer
+    recommended_tool: soft_404_phrase_detector
+    audit_finding_title: "Soft 404 Returns Success Status For Missing Content"
+
+  MISSING_STRUCTURED_DATA:
+    category: semantic_deficit
+    severity: high
+    signals: [zero_json_ld, missing_schema_org]
+    description: >
+      Lack of machine-readable metadata (JSON-LD, Microdata, Schema.org)
+      forces AI systems to rely on messy probabilistic NLP parsing to infer
+      entity types and facts.
+    recovery_strategy: heuristic_extraction
+    recommended_tool: llm_schema_infer
+    audit_finding_title: "No Schema.org / JSON-LD Structured Data Available"
+
+  CANONICAL_URL_AMBIGUITY:
+    category: semantic_deficit
+    severity: low
+    signals: [duplicate_content_detected, canonical_missing]
+    description: >
+      Multiple URL variants load identical content without a
+      `<link rel="canonical">` tag, risking infinite duplicate-processing
+      loops for crawlers.
+    recovery_strategy: content-cleaner
+    recommended_tool: content_hash_deduplication
+    audit_finding_title: "Missing Canonical Tags Create Duplicate-Content Ambiguity"
+
+  # ---------------------------------------------------------------------
+  # 5. Compliance & Access Governance
+  # ---------------------------------------------------------------------
+
+  USER_AGENT_ROBOTS_DISALLOW:
+    category: compliance_and_access
+    severity: critical
+    signals: [robots_txt_disallow, http_403_status]
+    description: >
+      Site policy explicitly forbids automated crawling of the target
+      route for the declared (or all) user-agents.
+    recovery_strategy: halt_and_report
+    recommended_tool: none
+    audit_finding_title: "Robots.txt Rules Block AI Scrapers"
+
+  HTTP_429_RATE_LIMIT:
+    category: compliance_and_access
+    severity: medium
+    signals: [http_429_rate_limit, retry_after_header_present]
+    description: >
+      Crawler request frequency exceeds server rate-limiting thresholds.
+    recovery_strategy: exponential_backoff
+    recommended_tool: crawl_delay_scheduler
+    audit_finding_title: "Rate Limiting Restricts Sustained Crawl Access"
+
+  ANTI_BOT_CAPTCHA_CHALLENGE:
+    category: compliance_and_access
+    severity: critical
+    signals: [anti_bot_challenge_detected, http_403_or_503_status]
+    description: >
+      A technical access barrier (Cloudflare/Akamai/CAPTCHA) is actively
+      blocking automated traffic.
+    recovery_strategy: halt_and_report
+    recommended_tool: none
+    audit_finding_title: "Anti-Bot Challenge Blocks Automated Access"
