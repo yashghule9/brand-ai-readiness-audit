@@ -5,6 +5,12 @@ description: Extracts the main readable content from raw or rendered HTML, strip
 
 # Content Cleaner
 
+> **Reference implementation:** `braiaudit.clean.clean()`
+> ([src/braiaudit/clean.py](../../src/braiaudit/clean.py)), runnable directly via
+> `python skills/content-cleaner/scripts/clean_content.py <url> --file page.html`.
+> Output is validated against
+> [schemas/content-cleaner.output.schema.json](../../schemas/content-cleaner.output.schema.json).
+
 ## Operational Mission
 
 Turn a raw or rendered HTML document into the text an AI system would

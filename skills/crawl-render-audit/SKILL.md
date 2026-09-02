@@ -5,6 +5,14 @@ description: Performs full headless-browser (Playwright/Chromium) rendering of a
 
 # Crawl & Render Audit
 
+> **Reference implementation:** `braiaudit.render.render()`
+> ([src/braiaudit/render.py](../../src/braiaudit/render.py)), runnable directly via
+> `python skills/crawl-render-audit/scripts/render_audit.py <url>`. Requires
+> the optional extra: `pip install -e ".[render]" && playwright install chromium`.
+> Without it, returns `{"available": false, ...}` per the Error Handling
+> section below rather than failing. Output is validated against
+> [schemas/crawl-render-audit.output.schema.json](../../schemas/crawl-render-audit.output.schema.json).
+
 ## Operational Mission
 
 Determine what an AI crawler or agent *with* a JavaScript-executing browser

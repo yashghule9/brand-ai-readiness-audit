@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Test / coverage
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Audit run output
+*.report.json

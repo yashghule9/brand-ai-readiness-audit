@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brand-ai-readiness-audit.dev/crawl-render-audit.output.schema.json",
+  "title": "CrawlRenderAuditOutput",
+  "type": "object",
+  "required": ["url", "signals"],
+  "properties": {
+    "url": { "type": "string" },
+    "available": {
+      "type": "boolean",
+      "description": "False when no headless-render backend (e.g. Playwright) is installed. When false, render_timed_out and DOM metrics are not meaningful."
+    },
+    "pre_render_text_length": { "type": ["integer", "null"] },
+    "post_render_text_length": { "type": ["integer", "null"] },
+    "dom_diff_ratio": { "type": ["number", "null"] },
+    "render_timed_out": { "type": "boolean" },
+    "scroll_triggered_nodes_found": { "type": ["integer", "null"] },
+    "interactions_performed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "selector": { "type": "string" },
+          "revealed_text_delta": { "type": ["integer", "null"] },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "shadow_dom_components_found": { "type": "array", "items": { "type": "string" } },
+    "shadow_dom_text_recovered": { "type": ["integer", "null"] },
+    "discovered_internal_links": { "type": "array", "items": { "type": "string" } },
+    "onclick_div_count": { "type": ["integer", "null"] },
+    "javascript_void_link_count": { "type": ["integer", "null"] },
+    "rendered_html": { "type": ["string", "null"] },
+    "signals": { "type": "array", "items": { "type": "string" } }
+  }
+}

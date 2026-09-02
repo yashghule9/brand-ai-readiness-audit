@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brand-ai-readiness-audit.dev/failure-diagnostics.output.schema.json",
+  "title": "FailureDiagnosticsOutput",
+  "type": "object",
+  "required": ["findings"],
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url", "failure_mode", "category", "title", "severity", "evidence", "suggested_action"],
+        "properties": {
+          "url": { "type": "string" },
+          "failure_mode": { "type": "string" },
+          "category": { "type": "string" },
+          "title": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "evidence": { "type": "string" },
+          "matched_signals": { "type": "array", "items": { "type": "string" } },
+          "suggested_action": {
+            "type": "object",
+            "required": ["summary", "priority"],
+            "properties": {
+              "summary": { "type": "string" },
+              "priority": { "type": "string", "enum": ["critical", "high", "medium", "low"] }
+            }
+          }
+        }
+      }
+    },
+    "unclassified_signals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Signals observed that matched no ontology entry — a prompt to extend the ontology, not an error."
+    }
+  }
+}

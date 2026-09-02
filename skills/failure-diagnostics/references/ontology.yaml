@@ -1,17 +1,39 @@
 # Web Failure Ontology — Knowledge Base
 #
-# Consumed by skills/failure-diagnostics/SKILL.md. Each entry maps a set of
-# machine-observable `signals` (emitted by website-observer, crawl-render-audit,
-# content-cleaner, and query-guided-discovery) to a named failure mode with a
-# severity, a recovery strategy (the sub-skill/technique that resolves or
-# further investigates it), and the exact finding title to use verbatim in
-# the final audit report.
+# Consumed by skills/failure-diagnostics/SKILL.md (and, in the reference
+# implementation, by src/braiaudit/ontology.py). Each entry maps a set of
+# machine-observable `signals` — emitted verbatim by website-observer,
+# crawl-render-audit, content-cleaner, and query-guided-discovery — to a
+# named failure mode with a severity, a recovery strategy, and the exact
+# finding title to use in the final audit report.
 #
-# To add a new failure mode: append an entry under the correct category with
-# all required fields populated. No pipeline code changes are needed — this
-# file is read at runtime.
+# `signals` and the code that emits them are kept in 1:1 correspondence on
+# purpose: every signal name below is grep-able in exactly one producer
+# module under src/braiaudit/, and tests/test_ontology.py asserts the
+# reverse — that no signal any producer emits is silently unclassified in
+# steady-state operation. If you add a new signal to a producer, add or
+# extend a failure mode here in the same change.
+#
+# `match_mode` controls how a failure mode's `signals` combine:
+#   - "all" (default): every listed signal must be present — use this when
+#     the signals are only meaningful together (e.g. low text *and* a high
+#     script count *and* a root container div is real CSR-shell evidence;
+#     any one alone is not).
+#   - "any": a single listed signal is sufficient — use this when the
+#     signals are independent alternative symptoms of the same underlying
+#     problem (e.g. a cookie banner OR a newsletter modal are both,
+#     independently, an interrupt overlay).
+# A failure mode is never emitted on a partial match of an "all" list —
+# that produced false positives in practice (see CHANGELOG v0.1.0) and was
+# deliberately removed rather than tuned.
+#
+# To add a new failure mode: append an entry under the correct category
+# with all required fields populated (see schemas/ontology.schema.json).
+# No pipeline code changes are needed to pick it up — this file is read at
+# runtime — but a signal it lists must actually be emitted by some producer
+# or it will simply never fire.
 
-ontology_version: "1.1"
+ontology_version: "1.2"
 
 categories:
   rendering_and_execution:
@@ -54,10 +76,14 @@ failure_modes:
   APP_SHELL_EMPTY_DOM:
     category: rendering_and_execution
     severity: high
+    match_mode: all
     signals: [low_raw_text, high_script_count, root_container_detected]
     description: >
       Page relies heavily on Client-Side Rendering (CSR). The initial HTTP
-      payload returns an essentially empty container element.
+      payload returns an essentially empty container element. All three
+      static signals are required together — low text length alone is
+      common on legitimately terse pages and is not, by itself, evidence
+      of a CSR shell.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright
     audit_finding_title: "JavaScript-Heavy Rendering Hides Content From Static Crawlers"
@@ -65,10 +91,13 @@ failure_modes:
   LAZY_LOAD_TRIGGER_REQUIRED:
     category: rendering_and_execution
     severity: medium
-    signals: [data_src_attribute_present, missing_lower_page_dom_nodes]
+    match_mode: any
+    signals: [data_src_attribute_present, lazy_load_confirmed]
     description: >
       Content only injects into the DOM upon viewport intersection or
-      scroll events, so a non-scrolling crawler never sees it.
+      scroll events, so a non-scrolling crawler never sees it. Either the
+      static `data-src` pattern or a render-confirmed scroll-reveal is
+      independently sufficient evidence.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright_scroll_driver
     audit_finding_title: "Lazy-Loaded Content Requires Scroll Interaction To Appear"
@@ -76,10 +105,12 @@ failure_modes:
   SHADOW_DOM_ENCAPSULATION:
     category: rendering_and_execution
     severity: medium
-    signals: [custom_element_tags_present, shadow_root_text_missing]
+    match_mode: all
+    signals: [shadow_dom_encapsulation_confirmed]
     description: >
-      Elements are hidden behind open or closed Shadow DOM boundaries that
-      standard CSS/XPath selectors do not pierce.
+      Elements are hidden behind open Shadow DOM boundaries that standard
+      CSS/XPath selectors do not pierce. Detected only after render, by
+      walking `element.shadowRoot` across the live DOM.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright_shadow_root_traversal
     audit_finding_title: "Shadow DOM Encapsulation Hides Content From Standard Selectors"
@@ -87,13 +118,30 @@ failure_modes:
   DYNAMIC_INTERACTION_BARRIER:
     category: rendering_and_execution
     severity: medium
-    signals: [tab_role_present, accordion_trigger_present, load_more_button_present, multistep_pagination_present]
+    match_mode: all
+    signals: [dynamic_interaction_confirmed]
     description: >
       Essential data is hidden behind required UI events — tab switches,
-      accordion expansion, "Load More" clicks, or multi-step pagination.
+      accordion expansion, or "Load More" clicks — confirmed only once a
+      driven interaction measurably changes the rendered text.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright_interaction_driver
     audit_finding_title: "Essential Content Is Gated Behind Required UI Interactions"
+
+  RENDER_COVERAGE_GAP:
+    category: rendering_and_execution
+    severity: medium
+    match_mode: all
+    signals: [render_backend_unavailable]
+    description: >
+      A page was flagged as likely client-side-rendered or interaction-
+      gated, but no headless-render backend was available (or the render
+      budget for this audit was exhausted), so JavaScript-dependent
+      content could not be confirmed either way. This is an honest
+      coverage gap, not a finding about the site itself.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright
+    audit_finding_title: "Render-Dependent Checks Could Not Be Verified"
 
   # ---------------------------------------------------------------------
   # 2. Content Noise & Layout Distortions
@@ -102,6 +150,7 @@ failure_modes:
   HIGH_BOILERPLATE_DENSITY:
     category: content_noise
     severity: medium
+    match_mode: all
     signals: [low_main_text_ratio, high_nav_footer_density]
     description: >
       Real content is drowned out by navigation links, site footers, and
@@ -113,10 +162,13 @@ failure_modes:
   MODAL_INTERRUPT_OVERLAY:
     category: content_noise
     severity: medium
-    signals: [high_z_index_overlay_present, body_overflow_hidden, cookie_banner_detected]
+    match_mode: any
+    signals: [high_z_index_overlay_present, cookie_banner_detected]
     description: >
       An overlay (cookie banner, newsletter modal, paywall interstitial)
       covers the viewport or blocks proper rendering and readability.
+      Either signal alone is sufficient — they describe the same overlay
+      detected via different attributes.
     recovery_strategy: content-cleaner
     recommended_tool: overlay_stripper
     audit_finding_title: "Modal/Overlay Interrupts Obstruct Page Content"
@@ -124,10 +176,12 @@ failure_modes:
   GENERIC_DIV_SOUP:
     category: content_noise
     severity: low
-    signals: [zero_semantic_tags, nested_div_span_only]
+    match_mode: all
+    signals: [zero_semantic_tags]
     description: >
       Complete lack of structural hierarchy (no <article>, <section>,
-      heading tags) makes document parsing and LLM chunking unreliable.
+      heading tags) in a page with substantial text makes document parsing
+      and LLM chunking unreliable.
     recovery_strategy: content-cleaner
     recommended_tool: visual_layout_reconstruction
     audit_finding_title: "Absent Semantic HTML Structure Undermines Reliable Parsing"
@@ -139,11 +193,13 @@ failure_modes:
   JAVASCRIPT_NAVIGATION_TRAP:
     category: discovery_and_pathing
     severity: high
+    match_mode: any
     signals: [onclick_div_navigation, javascript_void_href]
     description: >
       Links use `<div onclick="...">` or `href="javascript:void(0)"`
       instead of standard `<a href="...">`, so static link extractors find
-      no outgoing internal URLs.
+      no outgoing internal URLs. Either pattern alone is sufficient
+      evidence of the trap.
     recovery_strategy: crawl-render-audit
     recommended_tool: network_call_interception
     audit_finding_title: "Non-Standard Navigation Links Are Invisible To Crawlers"
@@ -151,6 +207,7 @@ failure_modes:
   DISTRIBUTED_INFORMATION_FRAGMENTATION:
     category: discovery_and_pathing
     severity: medium
+    match_mode: all
     signals: [partial_answer_match, high_internal_link_density]
     description: >
       The answer to a likely user/AI query requires aggregating facts
@@ -163,10 +220,13 @@ failure_modes:
   ORPHANED_PAGE_NO_SITEMAP:
     category: discovery_and_pathing
     severity: medium
+    match_mode: all
     signals: [zero_incoming_internal_links, absent_from_sitemap]
     description: >
       The page is isolated from the main site topology — unreachable via
-      normal crawl traversal or sitemap enumeration.
+      normal crawl traversal or sitemap enumeration. Both conditions are
+      required: a page missing from the sitemap but still linked from
+      elsewhere on the site is not truly orphaned.
     recovery_strategy: query-guided-discovery
     recommended_tool: sitemap_and_search_pivot
     audit_finding_title: "Orphaned Page Is Unreachable Via Sitemap Or Internal Links"
@@ -178,7 +238,8 @@ failure_modes:
   SOFT_404_MISDIRECTION:
     category: semantic_deficit
     severity: high
-    signals: [http_200_status, error_phrase_in_body]
+    match_mode: all
+    signals: [soft_404_suspected]
     description: >
       Client-side router returns a `200 OK` while serving a "Page Not
       Found"/"Item Unavailable" UI, deceiving status-code-only crawlers.
@@ -189,7 +250,8 @@ failure_modes:
   MISSING_STRUCTURED_DATA:
     category: semantic_deficit
     severity: high
-    signals: [zero_json_ld, missing_schema_org]
+    match_mode: all
+    signals: [missing_schema_org]
     description: >
       Lack of machine-readable metadata (JSON-LD, Microdata, Schema.org)
       forces AI systems to rely on messy probabilistic NLP parsing to infer
@@ -201,11 +263,13 @@ failure_modes:
   CANONICAL_URL_AMBIGUITY:
     category: semantic_deficit
     severity: low
+    match_mode: all
     signals: [duplicate_content_detected, canonical_missing]
     description: >
       Multiple URL variants load identical content without a
       `<link rel="canonical">` tag, risking infinite duplicate-processing
-      loops for crawlers.
+      loops for crawlers. Duplicate content alone is not a problem if a
+      canonical tag already disambiguates it — both signals are required.
     recovery_strategy: content-cleaner
     recommended_tool: content_hash_deduplication
     audit_finding_title: "Missing Canonical Tags Create Duplicate-Content Ambiguity"
@@ -217,7 +281,8 @@ failure_modes:
   USER_AGENT_ROBOTS_DISALLOW:
     category: compliance_and_access
     severity: critical
-    signals: [robots_txt_disallow, http_403_status]
+    match_mode: all
+    signals: [robots_txt_disallow]
     description: >
       Site policy explicitly forbids automated crawling of the target
       route for the declared (or all) user-agents.
@@ -228,7 +293,8 @@ failure_modes:
   HTTP_429_RATE_LIMIT:
     category: compliance_and_access
     severity: medium
-    signals: [http_429_rate_limit, retry_after_header_present]
+    match_mode: all
+    signals: [http_429_rate_limit]
     description: >
       Crawler request frequency exceeds server rate-limiting thresholds.
     recovery_strategy: exponential_backoff
@@ -238,7 +304,8 @@ failure_modes:
   ANTI_BOT_CAPTCHA_CHALLENGE:
     category: compliance_and_access
     severity: critical
-    signals: [anti_bot_challenge_detected, http_403_or_503_status]
+    match_mode: all
+    signals: [anti_bot_challenge_detected]
     description: >
       A technical access barrier (Cloudflare/Akamai/CAPTCHA) is actively
       blocking automated traffic.

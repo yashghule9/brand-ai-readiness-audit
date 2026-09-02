@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brand-ai-readiness-audit.dev/query-guided-discovery.output.schema.json",
+  "title": "QueryGuidedDiscoveryOutput",
+  "type": "object",
+  "required": ["seed_url", "orphaned_pages", "signals"],
+  "properties": {
+    "seed_url": { "type": "string" },
+    "query_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["query", "seed_page_answer_completeness"],
+        "properties": {
+          "query": { "type": "string" },
+          "seed_page_answer_completeness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "candidate_pages_ranked": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string" },
+                "relevance_score": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          },
+          "answer_found_after_discovery": { "type": "boolean" },
+          "pages_required_to_answer": { "type": "array", "items": { "type": "string" } },
+          "attempted_but_unreachable": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "orphaned_pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "incoming_links": { "type": "integer", "minimum": 0 },
+          "in_sitemap": { "type": "boolean" }
+        }
+      }
+    },
+    "signals": { "type": "array", "items": { "type": "string" } }
+  }
+}

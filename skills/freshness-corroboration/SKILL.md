@@ -5,6 +5,13 @@ description: Assembles all evidence and findings gathered across the audit pipel
 
 # Freshness & Corroboration
 
+> **Reference implementation:** `braiaudit.report.assemble_report()`
+> ([src/braiaudit/report.py](../../src/braiaudit/report.py)), runnable directly via
+> `python skills/freshness-corroboration/scripts/assemble.py < request.json`.
+> The emitted report is validated against
+> [schemas/audit-report.schema.json](../../schemas/audit-report.schema.json) — the
+> authoritative floor schema — before being returned.
+
 ## Operational Mission
 
 Be the single point where the audit's final JSON is produced. Take the raw,

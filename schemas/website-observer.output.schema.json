@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brand-ai-readiness-audit.dev/website-observer.output.schema.json",
+  "title": "WebsiteObserverOutput",
+  "type": "object",
+  "required": ["url", "http_status", "signals"],
+  "properties": {
+    "url": { "type": "string" },
+    "http_status": { "type": ["integer", "null"] },
+    "error": { "type": "string" },
+    "headers": { "type": "object" },
+    "response_time_ms": { "type": ["number", "null"] },
+    "robots_txt": {
+      "type": "object",
+      "properties": {
+        "fetched": { "type": "boolean" },
+        "disallowed_for_agent": { "type": "boolean" },
+        "crawl_delay_seconds": { "type": ["number", "null"] },
+        "sitemap_urls": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "sitemap_present": { "type": "boolean" },
+    "sitemap_urls": { "type": "array", "items": { "type": "string" } },
+    "raw_html": { "type": ["string", "null"], "description": "Full fetched HTML body, present only for successful text/html responses." },
+    "raw_html_bytes": { "type": ["integer", "null"] },
+    "raw_text_length": { "type": ["integer", "null"] },
+    "script_count": { "type": ["integer", "null"] },
+    "link_count": { "type": ["integer", "null"] },
+    "root_container_detected": { "type": "boolean" },
+    "data_src_attribute_present": { "type": "boolean" },
+    "canonical_tag_present": { "type": "boolean" },
+    "json_ld_present": { "type": "boolean" },
+    "soft_404_suspected": { "type": "boolean" },
+    "content_type": { "type": ["string", "null"] },
+    "final_url": { "type": ["string", "null"] },
+    "redirect_count": { "type": ["integer", "null"] },
+    "signals": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

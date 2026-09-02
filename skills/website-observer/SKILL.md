@@ -5,6 +5,12 @@ description: Performs a low-overhead HTTP-only inspection of a URL — raw GET r
 
 # Website Observer
 
+> **Reference implementation:** `braiaudit.fetch.observe()`
+> ([src/braiaudit/fetch.py](../../src/braiaudit/fetch.py)), runnable directly via
+> `python skills/website-observer/scripts/observe.py <url>`. The Output
+> Schema below is enforced at runtime against
+> [schemas/website-observer.output.schema.json](../../schemas/website-observer.output.schema.json).
+
 ## Operational Mission
 
 Answer, as cheaply as possible and without executing any client-side code:

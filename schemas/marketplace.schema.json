@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brand-ai-readiness-audit.dev/marketplace.schema.json",
+  "title": "SkillMarketplaceManifest",
+  "type": "object",
+  "required": ["marketplace_name", "marketplace_version", "skills", "execution_order"],
+  "properties": {
+    "marketplace_name": { "type": "string", "minLength": 1 },
+    "marketplace_version": { "type": "string" },
+    "description": { "type": "string" },
+    "maintainers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "contact": { "type": "string" }
+        }
+      }
+    },
+    "orchestrator": { "type": "string" },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "path", "role", "summary", "version"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "path": { "type": "string" },
+          "role": { "type": "string", "enum": ["orchestrator", "capability"] },
+          "summary": { "type": "string" },
+          "version": { "type": "string" },
+          "references": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "execution_order": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -5,6 +5,17 @@ description: Given one or more target queries/topics and a page's internal link 
 
 # Query-Guided Discovery
 
+> **Reference implementation:** `braiaudit.discovery.discover()`
+> ([src/braiaudit/discovery.py](../../src/braiaudit/discovery.py)), using
+> lexical TF-cosine relevance scoring
+> ([src/braiaudit/relevance.py](../../src/braiaudit/relevance.py)) rather than a
+> heavyweight embedding model — sufficient to separate "clearly about
+> pricing" from "clearly about careers", which is the level of judgment
+> this skill actually needs. Runnable directly via
+> `python skills/query-guided-discovery/scripts/discover.py < request.json`.
+> Output is validated against
+> [schemas/query-guided-discovery.output.schema.json](../../schemas/query-guided-discovery.output.schema.json).
+
 ## Operational Mission
 
 Simulate how an AI agent or RAG retriever, armed with a real user question,

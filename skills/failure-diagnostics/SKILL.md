@@ -5,6 +5,14 @@ description: Maps raw technical signals collected by other skills (website-obser
 
 # Failure Diagnostics
 
+> **Reference implementation:** `braiaudit.ontology.diagnose()`
+> ([src/braiaudit/ontology.py](../../src/braiaudit/ontology.py)), runnable directly via
+> `python skills/failure-diagnostics/scripts/diagnose.py < bundle.json`. The
+> ontology itself is validated at load time against
+> [schemas/ontology.schema.json](../../schemas/ontology.schema.json); findings
+> are validated against
+> [schemas/failure-diagnostics.output.schema.json](../../schemas/failure-diagnostics.output.schema.json).
+
 ## Operational Mission
 
 Convert loose, per-skill signal tokens into rigorous, named findings by
@@ -68,18 +76,33 @@ across pages.
 
 1. **Load the ontology** once per audit run (not per URL) — cache
    `failure_modes` keyed by failure-mode name, each with its `signals` set.
-2. **For each incoming signal bundle**, compute the set intersection between
-   the bundle's `signals` and each ontology entry's `signals`.
-   - A **full match** (every signal in the ontology entry's `signals` list
-     is present in the bundle) is a confident classification.
-   - A **partial match** (at least one but not all required signals
-     present) is still worth surfacing but should be treated as lower
-     confidence — include it, but do not inflate its severity above what
-     the ontology declares.
+2. **For each incoming signal bundle**, evaluate every ontology entry
+   against its declared `match_mode` (defaults to `all` when the field is
+   absent):
+   - `match_mode: all` — every signal in the entry's `signals` list must be
+     present in the bundle. Use this when the signals are only meaningful
+     together (e.g. low text length alone is common on legitimately terse
+     pages; it only means "CSR app shell" combined with a high script count
+     *and* a detected root container).
+   - `match_mode: any` — a single listed signal is sufficient. Use this
+     when the signals are independent alternative symptoms of the same
+     problem (e.g. a cookie banner *or* a newsletter modal are both,
+     independently, an interrupt overlay).
+   - **A failure mode never fires on a weaker partial overlap than its
+     declared `match_mode` requires.** An earlier version of this skill
+     surfaced any nonzero overlap as a lower-confidence "partial match" —
+     in practice this produced false positives (a single `low_raw_text`
+     signal alone tripping the CSR-app-shell finding on ordinary short
+     pages) and was removed rather than tuned. If a mode's true criterion
+     really is "any one of these," declare it as `match_mode: any`
+     explicitly instead of relying on partial-match leniency.
    - No match → no finding for that failure mode; this is the expected
-     common case, not an error.
+     common case, not an error. Signals matching no ontology entry's
+     criterion at all are reported separately (see `unclassified_signals`
+     in the Output Schema) rather than silently dropped.
 3. **Rank matches** for a given URL by the ontology's declared `severity`
-   (`critical` > `high` > `medium` > `low`), then by match completeness.
+   (`critical` > `high` > `medium` > `low`), then by category declaration
+   order in the ontology.
 4. **Compose `evidence`** as a concrete, specific sentence referencing the
    actual observed metric values from `metrics` — never a generic
    restatement of the signal name. E.g. prefer "Crawled 12 pages; 0/12

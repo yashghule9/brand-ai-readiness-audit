@@ -5,6 +5,16 @@ description: Orchestrates a full Brand AI Readiness Audit of a website — evalu
 
 # Brand AI Readiness Audit — Master Orchestrator
 
+> **Reference implementation:** `braiaudit.pipeline.run_audit()`
+> ([src/braiaudit/pipeline.py](src/braiaudit/pipeline.py)) implements this exact
+> six-step sequence end to end and is runnable directly:
+> `braiaudit audit example.com` (see [README.md](README.md) Quickstart for
+> install). It runs fully without any browser installed, degrading
+> render-dependent checks to an honest `RENDER_COVERAGE_GAP` finding; install
+> the optional `[render]` extra for full JavaScript-rendering coverage. When
+> Claude drives the skills itself via tool use instead of this CLI, this
+> document is the spec that sequence must follow.
+
 ## Operational Mission
 
 Determine, for a given site (a domain or a small set of seed URLs), whether AI
