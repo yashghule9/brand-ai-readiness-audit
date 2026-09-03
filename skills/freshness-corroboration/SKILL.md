@@ -8,7 +8,10 @@ description: Assembles all evidence and findings gathered across the audit pipel
 > **Reference implementation:** `braiaudit.report.assemble_report()`
 > ([src/braiaudit/report.py](../../src/braiaudit/report.py)), runnable directly via
 > `python skills/freshness-corroboration/scripts/assemble.py < request.json`.
-> The emitted report is validated against
+> The meta-analysis stage (step 8 below) is
+> [src/braiaudit/coverage.py](../../src/braiaudit/coverage.py) (coverage) and
+> [src/braiaudit/meta.py](../../src/braiaudit/meta.py) (structural validation +
+> correlation notes). The emitted report is validated against
 > [schemas/audit-report.schema.json](../../schemas/audit-report.schema.json) — the
 > authoritative floor schema — before being returned.
 
@@ -21,6 +24,20 @@ clean, deduplicated, correctly-numbered, schema-conformant report — while
 also judging whether a finding is *corroborated* (seen consistently, or
 structurally certain) versus a one-off anomaly that shouldn't be reported
 at the same severity as a site-wide pattern.
+
+This skill answers two different questions, and both matter:
+
+- **Normal analysis:** "What's wrong with the website?" — steps 1–7 below.
+- **Meta-analysis:** "Are our conclusions about what's wrong with the
+  website actually correct, consistent, non-duplicated, and well-supported
+  — and how much of the audit space did we actually get to inspect?" —
+  step 8, the `meta` block.
+
+The second question is not optional polish. A pipeline that silently skips
+`crawl-render-audit` because no browser is installed and a pipeline that
+ran it and found nothing wrong produce an *identical-looking* findings
+array otherwise — only the coverage measurement in `meta.coverage`
+distinguishes "verified clean" from "never checked."
 
 ## Preconditions
 
@@ -72,15 +89,40 @@ at the same severity as a site-wide pattern.
         "priority": "high"
       }
     }
-  ]
+  ],
+  "meta": {
+    "coverage": {
+      "ontology_version": "1.2",
+      "skills_engaged": ["website-observer", "content-cleaner", "query-guided-discovery", "pipeline"],
+      "overall_coverage_pct": 82.4,
+      "categories": {
+        "rendering_and_execution": {
+          "label": "Rendering & Execution Failures",
+          "total_failure_modes": 5,
+          "evaluated_failure_modes": 3,
+          "coverage_pct": 60.0,
+          "not_evaluated": ["SHADOW_DOM_ENCAPSULATION", "DYNAMIC_INTERACTION_BARRIER"]
+        }
+      }
+    },
+    "validation": {
+      "passed": true,
+      "checks": [
+        { "name": "no_duplicate_ids", "passed": true, "means": "every finding has a unique id" }
+      ],
+      "notes": []
+    }
+  }
 }
 ```
 
-This schema is the **floor** — every field shown is required and must be
-present with the correct type on every finding. Do not add top-level fields
-that could break a strict downstream consumer; extra per-finding detail
-(e.g. `affected_urls`) may be included only as additive fields, never in
-place of the required ones.
+This schema is the **floor** — every field shown other than `meta` is
+required and must be present with the correct type on every finding. Do
+not add top-level fields that could break a strict downstream consumer;
+extra per-finding detail (e.g. `affected_urls`) and the whole `meta` block
+may be included only as additive fields, never in place of the required
+ones — a consumer that only reads `site`/`summary`/`findings` must keep
+working unmodified.
 
 ## Step-by-Step Execution Sequence
 
@@ -125,6 +167,27 @@ place of the required ones.
    constrained to the enum) before returning it. If validation fails, fix
    the assembly — never return a non-conformant object with an apology
    attached.
+8. **Meta-analysis** — attach the `meta` block, computed from two
+   independent checks that never alter a finding's content:
+   - **Coverage** — cross-reference which signals each ontology failure
+     mode needs against which producer skills actually ran this audit
+     (did a render backend execute? were `target_queries` supplied?). A
+     failure mode whose required skill never ran is reported as
+     `not_evaluated`, per category, with an `overall_coverage_pct`. This is
+     what lets the orchestrator (or a human reading the report) say "we
+     haven't sufficiently audited Rendering & Execution" instead of
+     silently reading a coverage gap as a clean bill of health.
+   - **Validation** — a set of structural self-checks on the report just
+     assembled: no duplicate finding titles or ids, ids sequential with no
+     gaps, every finding's evidence non-empty, findings sorted by
+     severity, and the `summary` counts independently recomputable from
+     the `findings` array. Each check reports `passed: true/false`: this
+     is "are our conclusions internally consistent," not a re-judgment of
+     whether a finding is factually correct. Alongside the checks, add
+     informational `notes` for findings that affect the exact same set of
+     URLs — a hint that they may share a root cause — without merging them
+     automatically; that judgment call is left to whoever reads the
+     report, since a deterministic pass can't responsibly make it alone.
 
 ## Error Handling & Edge Cases
 
@@ -148,3 +211,14 @@ place of the required ones.
 - **Downstream schema drift** (a consumer expects additional fields not in
   the floor schema): only add fields additively and document them; never
   remove or rename a floor-schema field to accommodate a specific consumer.
+- **A meta-analysis validation check fails** (e.g. `summary_matches_findings`
+  is `false`): this means step 5 or step 4 has a bug — fix the assembly
+  logic and re-run, never hand-edit the `summary` or `findings` array to
+  force the check to pass, and never suppress `meta.validation` to hide a
+  failing check. `meta.validation.passed: false` should reach the reader;
+  it is a signal about the report's own reliability, not noise to filter.
+- **No skills engaged at all** (e.g. every seed URL was disallowed by
+  robots.txt before any other skill ran): `meta.coverage.overall_coverage_pct`
+  correctly reads near 0% — this is accurate, not a bug to paper over. Do
+  not backfill `skills_engaged` with skills that were merely available but
+  never actually ran.

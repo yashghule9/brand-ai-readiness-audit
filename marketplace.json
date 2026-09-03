@@ -1,7 +1,7 @@
 {
   "$schema": "https://schemas.anthropic.com/claude/skill-marketplace/v1.json",
   "marketplace_name": "brand-ai-readiness-audit",
-  "marketplace_version": "1.0.0",
+  "marketplace_version": "1.1.0",
   "description": "Modular skill set that audits a brand's website for AI-crawler and AI-agent readiness: renderability, content noise, discoverability, structured-data completeness, and crawl-compliance posture.",
   "maintainers": [
     {
@@ -16,7 +16,7 @@
       "path": "./SKILL.md",
       "role": "orchestrator",
       "summary": "Master orchestrator that sequences every sub-skill and emits the final audit report.",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     {
       "name": "website-observer",
@@ -60,8 +60,8 @@
       "name": "freshness-corroboration",
       "path": "./skills/freshness-corroboration/SKILL.md",
       "role": "capability",
-      "summary": "Aggregates evidence, corroborates findings, and emits the final floor-schema JSON audit report.",
-      "version": "1.0.0"
+      "summary": "Aggregates evidence, corroborates findings, runs coverage/validation meta-analysis, and emits the final floor-schema JSON audit report.",
+      "version": "1.1.0"
     }
   ],
   "execution_order": [

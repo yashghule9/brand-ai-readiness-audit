@@ -59,6 +59,12 @@ def run_audit(
     content_hash_urls: dict[str, list[str]] = {}
     canonical_missing_urls: set[str] = set()
 
+    # Which "sources" (see braiaudit.coverage.SIGNAL_SOURCES) actually ran
+    # this audit — feeds the final report's meta.coverage block so a gap
+    # (no render backend, no target_queries supplied) reads as "not
+    # evaluated" rather than silently as "clean."
+    engaged: set[str] = {"pipeline"}
+
     # Cache so query-guided-discovery's candidate-page fetches never repeat
     # an observe+clean pass already done for a seed/rendered page this run.
     text_cache: dict[str, str | None] = {}
@@ -75,6 +81,7 @@ def run_audit(
 
         # --- 1. Observe ------------------------------------------------
         observed = fetch.observe(url, user_agent=options.user_agent, session=session)
+        engaged.add("website-observer")
         page_findings.extend(_diagnose(url, observed))
 
         if observed.get("http_status") is None:
@@ -99,6 +106,7 @@ def run_audit(
             render_budget_remaining -= 1
             page_findings.extend(_diagnose(url, rendered))
             if rendered.get("available"):
+                engaged.add("crawl-render-audit")
                 best_html = rendered.get("rendered_html") or best_html
         elif needs_render:
             page_findings.extend(
@@ -120,6 +128,7 @@ def run_audit(
             cleaned = clean.clean(
                 url, best_html, source="rendered" if rendered_available else "raw"
             )
+            engaged.add("content-cleaner")
             page_findings.extend(_diagnose(url, cleaned))
             text_cache[url] = cleaned["clean_text"]
             content_hash_urls.setdefault(cleaned["content_hash"], []).append(url)
@@ -130,6 +139,9 @@ def run_audit(
             incoming_links_map[link] = incoming_links_map.get(link, 0) + 1
 
         if cleaned is not None:
+            engaged.add("query-guided-discovery")
+            if options.target_queries:
+                engaged.add("query-guided-discovery:target_queries")
             discovered = discovery.discover(
                 seed_url=url,
                 seed_text=cleaned["clean_text"],
@@ -170,6 +182,7 @@ def run_audit(
         findings_by_url=findings_by_url,
         pages_crawled=pages_crawled,
         pages_unreachable=pages_unreachable,
+        skills_engaged=engaged,
     )
 
 

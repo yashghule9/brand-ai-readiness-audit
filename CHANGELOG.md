@@ -6,6 +6,52 @@ All notable changes to this project are documented here. Format follows
 (`marketplace.json`'s `marketplace_version` tracks the *skill definitions*
 separately and moves more slowly).
 
+## [0.2.0] — 2026-09-03
+
+### Added
+
+- **Meta-analysis stage** in `freshness-corroboration`
+  (`braiaudit.coverage` + `braiaudit.meta`), attached to every report as an
+  additive `meta` block. This closes a gap identified against an external
+  design review of the "ontology as knowledge/taxonomy layer under the
+  orchestrator, not the execution mechanism" approach this pipeline
+  already followed: the review's recommended architecture is
+  `ONTOLOGY -> SKILLS -> CHECKS -> FINDINGS`, with a further
+  `raw observations -> META ANALYZER (dedupe, validate, root-cause) ->
+  recommendations -> final report` stage on top. Dedup and floor-schema
+  validation already existed (`freshness-corroboration`'s per-failure-mode
+  grouping, `braiaudit.schemas.validate`); this release adds the two
+  pieces that didn't: coverage measurement and structural self-validation.
+  - **`braiaudit.coverage.compute_coverage()`** — cross-references which
+    signals each ontology failure mode needs against which producer skills
+    actually ran a given audit (a `SIGNAL_SOURCES` map, e.g.
+    `crawl-render-audit` only counts as engaged if a render actually
+    executed with a backend available — not merely attempted). Reports
+    per-category and overall coverage percentages plus the specific
+    `not_evaluated` failure modes, so "no render backend installed" reads
+    as an explicit coverage gap rather than a silently clean bill of
+    health for every render-dependent check.
+  - **`braiaudit.meta.validate_report()`** — structural self-checks on the
+    assembled report (no duplicate finding titles/ids, ids sequential with
+    no gaps, every finding's evidence non-empty, findings sorted by
+    severity, `summary` counts independently recomputable from the
+    `findings` array) plus informational — never automatically merged —
+    correlation notes when multiple distinct findings affect the exact
+    same set of URLs, as a root-cause hint for a human or Claude to weigh.
+  - `braiaudit.pipeline.run_audit()` now tracks `skills_engaged` (which
+    producer "sources" actually ran, including query-dependent ones like
+    `query-guided-discovery:target_queries`) and threads it through to
+    `assemble_report()`.
+  - `schemas/audit-report.schema.json` documents the new `meta.coverage` /
+    `meta.validation` shape as optional, additive properties — a consumer
+    reading only `site`/`summary`/`findings` is unaffected.
+  - 14 new tests (`tests/test_coverage.py`, `tests/test_meta.py`, plus two
+    pipeline-level assertions) bring the suite to 70 tests.
+- `skills/freshness-corroboration/SKILL.md` documents the meta-analysis
+  stage as step 8 of its execution sequence, with the "normal analysis vs.
+  meta-analysis" framing this addition is built around; the root `SKILL.md`
+  and `README.md` reference it in the pipeline description.
+
 ## [0.1.0] — 2026-09-02
 
 ### Added

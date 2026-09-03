@@ -31,6 +31,46 @@
     "findings": {
       "type": "array",
       "items": { "$ref": "#/$defs/finding" }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Optional meta-analysis block: ontology coverage measurement and structural validation of the findings/summary above. Additive — a report without it (e.g. from an older producer) still validates.",
+      "additionalProperties": true,
+      "properties": {
+        "coverage": {
+          "type": "object",
+          "description": "Which ontology failure modes could actually be evaluated this run, per category, given which skills/backends were engaged.",
+          "additionalProperties": true,
+          "properties": {
+            "ontology_version": { "type": "string" },
+            "skills_engaged": { "type": "array", "items": { "type": "string" } },
+            "overall_coverage_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+            "categories": { "type": "object" }
+          }
+        },
+        "validation": {
+          "type": "object",
+          "description": "Structural self-checks on this report (no duplicate/out-of-order ids, summary counts match the findings array, etc.) plus informational cross-finding correlation notes.",
+          "additionalProperties": true,
+          "required": ["passed", "checks"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "passed"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "passed": { "type": "boolean" },
+                  "means": { "type": "string" }
+                }
+              }
+            },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
     }
   },
   "$defs": {

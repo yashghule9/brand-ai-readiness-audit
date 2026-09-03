@@ -13,6 +13,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
+from braiaudit import coverage as coverage_mod
+from braiaudit import meta as meta_mod
 from braiaudit.ontology import load_ontology
 from braiaudit.schemas import validate
 
@@ -30,7 +32,16 @@ def assemble_report(
     pages_crawled: int,
     pages_unreachable: list[str] | None = None,
     audited_at: str | None = None,
+    skills_engaged: set[str] | None = None,
 ) -> dict[str, Any]:
+    """Assemble, corroborate, and validate the final audit report.
+
+    `skills_engaged` (see `braiaudit.coverage.SIGNAL_SOURCES` and
+    `braiaudit.pipeline._engaged_skills`) drives the `meta.coverage` block —
+    omit it only for a standalone/test call where coverage reporting isn't
+    needed; the report still validates against the floor schema either way,
+    since `meta` is an additive, non-required field.
+    """
     ontology = load_ontology()
     pages_unreachable = pages_unreachable or []
 
@@ -93,6 +104,18 @@ def assemble_report(
         "summary": summary,
         "findings": findings,
     }
+
+    # --- Meta-analysis stage: "are our conclusions about what's wrong with
+    # the site actually correct, consistent, non-duplicated, and
+    # well-supported?" — a different question than the findings themselves
+    # answer. See braiaudit.meta and braiaudit.coverage for what each half
+    # checks; both are additive (schema-optional) and never change a
+    # finding's content, only report on the findings as a whole.
+    report["meta"] = {
+        "coverage": coverage_mod.compute_coverage(skills_engaged or set(), ontology=ontology),
+        "validation": meta_mod.validate_report(report),
+    }
+
     validate(report, "audit-report")
     return report
 

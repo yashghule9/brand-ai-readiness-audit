@@ -84,7 +84,7 @@ brand-ai-readiness-audit/
 ├── pyproject.toml                    # `braiaudit` package definition
 ├── schemas/                          # JSON Schemas for every I/O contract (source of truth)
 ├── src/braiaudit/                    # Reference implementation, one module per skill
-├── tests/                            # pytest suite (56 tests) + HTML fixtures
+├── tests/                            # pytest suite (70 tests) + HTML fixtures
 ├── tools/lint_skills.py              # CI-enforced SKILL.md / ontology / marketplace linter
 ├── .github/workflows/ci.yml          # lint + skill-lint + schema-validate + pytest, py3.10–3.13
 └── skills/
@@ -174,7 +174,25 @@ website-observer  crawl-render- content-cleaner  query-guided-   failure-
    by failure mode across every crawled page (not one entry per page-hit),
    corroborates evidence honestly (states the hit ratio, never inflates a
    one-page fluke into a site-wide claim), computes summary counts, and
-   emits the final JSON matching the audit report floor schema.
+   emits the final JSON matching the audit report floor schema. It also
+   runs a **meta-analysis stage** — a different question than "what's
+   wrong," namely "are our conclusions correct, consistent, and
+   well-supported": ontology **coverage measurement** (which failure modes
+   could actually be checked given which skills ran this audit — so a
+   never-installed render backend reads as "not evaluated," never as
+   silently clean) plus structural **validation** (no duplicate/out-of-order
+   ids, summary counts recomputable from the findings array) and
+   informational **correlation notes** for findings that may share a root
+   cause. See `meta.coverage` / `meta.validation` in the schema below.
+
+The ontology sits underneath this pipeline purely as a **knowledge/taxonomy
+layer** — `braiaudit.ontology` only loads and matches `ontology.yaml`, it
+never fetches, renders, or cleans anything itself. Execution always lives
+in the skill modules; the ontology's only job is naming and scoring what
+they find. `skills_engaged` — the set of producer skills that actually ran
+this audit — is threaded from `pipeline.py` through to
+`coverage.compute_coverage()` for exactly this reason: coverage is a fact
+about what ran, not about what the ontology contains.
 
 ## Audit Report Floor Schema
 
@@ -203,14 +221,30 @@ Every audit run emits (via `freshness-corroboration` /
         "priority": "critical"
       }
     }
-  ]
+  ],
+  "meta": {
+    "coverage": {
+      "overall_coverage_pct": 82.4,
+      "skills_engaged": ["website-observer", "content-cleaner", "query-guided-discovery", "pipeline"],
+      "categories": {
+        "rendering_and_execution": { "coverage_pct": 60.0, "not_evaluated": ["SHADOW_DOM_ENCAPSULATION", "DYNAMIC_INTERACTION_BARRIER"] }
+      }
+    },
+    "validation": { "passed": true, "checks": ["... 6 structural self-checks ..."], "notes": [] }
+  }
 }
 ```
+
+`meta` is additive — a consumer that only reads `site` / `summary` /
+`findings` keeps working unmodified. It's what lets a reader distinguish
+"we checked for Shadow DOM issues and found none" from "we never checked
+for Shadow DOM issues" (no render backend installed, in the example
+above) — the same findings array either way, but a very different claim.
 
 ## Testing & quality
 
 ```bash
-pytest -q                                    # 56 tests, no network required
+pytest -q                                    # 70 tests, no network required
 ruff check src tests tools                   # lint
 python tools/lint_skills.py                  # SKILL.md / ontology / marketplace lint
 braiaudit validate marketplace.json --schema marketplace

@@ -127,10 +127,16 @@ JSON block itself must be complete and standalone.
    `failure-diagnostics` to map signals onto the Web Failure Ontology and
    produce candidate findings with severity, evidence, and suggested action.
 
-6. **Corroborate & Assemble** — invoke `freshness-corroboration` with the
-   full findings set to deduplicate repeated findings across pages, confirm
-   findings are still current (not stale one-page flukes), compute the
-   summary counts, and emit the final schema-conformant JSON.
+6. **Corroborate, Meta-Analyze & Assemble** — invoke `freshness-corroboration`
+   with the full findings set to deduplicate repeated findings across
+   pages, confirm findings are still current (not stale one-page flukes),
+   run the meta-analysis stage (ontology coverage measurement — which
+   failure modes could actually be checked given which skills ran this
+   audit — plus structural self-validation of the assembled findings),
+   compute the summary counts, and emit the final schema-conformant JSON.
+   Track, across steps 1–5, which skills actually ran for each URL (not
+   just which were available) — `freshness-corroboration` needs that to
+   report coverage honestly rather than assuming everything was checked.
 
 ## Error Handling & Edge Cases
 
@@ -147,7 +153,9 @@ JSON block itself must be complete and standalone.
   `website-observer` and `content-cleaner`, and add a `medium` finding
   noting that render-dependent checks (`APP_SHELL_EMPTY_DOM`,
   `LAZY_LOAD_TRIGGER_REQUIRED`, etc.) could not be verified, rather than
-  omitting them or guessing a verdict.
+  omitting them or guessing a verdict. This degradation must also show up
+  in the final report's `meta.coverage` — a skill that never ran is a
+  `not_evaluated` failure mode there, not a silently-passed one.
 - **Schema conformance failure**: never return the final report if it does
   not validate against the floor schema. Re-run `freshness-corroboration`
   assembly rather than hand-patching JSON inline.
