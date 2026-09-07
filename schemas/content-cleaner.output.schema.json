@@ -3,18 +3,46 @@
   "$id": "https://schemas.brand-ai-readiness-audit.dev/content-cleaner.output.schema.json",
   "title": "ContentCleanerOutput",
   "type": "object",
-  "required": ["url", "clean_text", "main_text_to_markup_ratio", "signals"],
+  "required": [
+    "url",
+    "clean_text",
+    "main_text_to_markup_ratio",
+    "signals"
+  ],
   "properties": {
-    "url": { "type": "string" },
-    "clean_text": { "type": "string" },
-    "main_text_to_markup_ratio": { "type": "number", "minimum": 0 },
-    "boilerplate_removed_bytes": { "type": "integer", "minimum": 0 },
+    "url": {
+      "type": "string"
+    },
+    "clean_text": {
+      "type": "string"
+    },
+    "main_text_to_markup_ratio": {
+      "type": "number",
+      "minimum": 0
+    },
+    "boilerplate_removed_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
     "structure": {
       "type": "object",
       "properties": {
-        "semantic_tags_present": { "type": "boolean" },
-        "headings_found": { "type": "integer", "minimum": 0 },
-        "paragraphs_found": { "type": "integer", "minimum": 0 }
+        "semantic_tags_present": {
+          "type": "boolean"
+        },
+        "headings_found": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "paragraphs_found": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "question_shaped_headings": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many headings are phrased as a question \u2014 the register users actually prompt assistants in."
+        }
       }
     },
     "overlays_removed": {
@@ -22,13 +50,29 @@
       "items": {
         "type": "object",
         "properties": {
-          "type": { "type": "string" },
-          "z_index": { "type": ["integer", "null"] }
+          "type": {
+            "type": "string"
+          },
+          "z_index": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
         }
       }
     },
-    "content_hash": { "type": "string" },
-    "truncated": { "type": "boolean" },
-    "signals": { "type": "array", "items": { "type": "string" } }
+    "content_hash": {
+      "type": "string"
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   }
 }

@@ -29,6 +29,17 @@ _HIGH_BOILERPLATE_BYTES_FRACTION = 0.40
 
 _SEMANTIC_CONTENT_TAGS = ("article", "section", "h1", "h2", "h3", "h4", "h5", "h6")
 
+# People ask assistants questions; brands write headings as slogans. A page
+# whose headings never take a question's shape is written in the wrong
+# register to be retrieved for one.
+_QUESTION_WORDS = ("what", "how", "why", "when", "where", "which", "who", "is", "does", "can")
+
+# How much of the main text counts as "above the fold" for the purpose of
+# asking whether the concrete answer (a price, a size, a number) is near the
+# top or buried under marketing copy.
+_ABOVE_FOLD_CHARS = 600
+_MIN_LENGTH_FOR_FOLD_CHECK = 1500
+
 
 def _z_index_of(tag: Tag) -> int | None:
     style = tag.get("style", "") or ""
@@ -122,7 +133,23 @@ def clean(url: str, html: str, source: str = "raw") -> dict[str, Any]:
 
     content_hash = "sha256:" + hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
 
+    heading_texts = [h.get_text(" ", strip=True) for h in headings]
+    question_shaped = [
+        h
+        for h in heading_texts
+        if "?" in h or h.lower().split()[:1] and h.lower().split()[0] in _QUESTION_WORDS
+    ]
+    above_fold = clean_text[:_ABOVE_FOLD_CHARS]
+
     signals: list[str] = []
+    if heading_texts and not question_shaped:
+        signals.append("no_question_shaped_headings")
+    if (
+        len(clean_text) > _MIN_LENGTH_FOR_FOLD_CHECK
+        and any(ch.isdigit() for ch in clean_text)
+        and not any(ch.isdigit() for ch in above_fold)
+    ):
+        signals.append("primary_facts_below_fold")
     if ratio < _LOW_RATIO_THRESHOLD:
         signals.append("low_main_text_ratio")
     boilerplate_fraction = boilerplate_removed_bytes / original_bytes if original_bytes else 0
@@ -145,6 +172,7 @@ def clean(url: str, html: str, source: str = "raw") -> dict[str, Any]:
             "semantic_tags_present": semantic_present,
             "headings_found": len(headings),
             "paragraphs_found": len(paragraphs),
+            "question_shaped_headings": len(question_shaped),
         },
         "overlays_removed": overlays_removed,
         "content_hash": content_hash,

@@ -1,6 +1,8 @@
 ---
 name: content-cleaner
 description: Extracts the main readable content from raw or rendered HTML, strips boilerplate (navigation, footers, sidebars, ads, cookie banners, modal overlays), computes the main-text-to-markup ratio, and reconstructs semantic structure (headings/paragraphs) when the source HTML lacks it. Use after website-observer or crawl-render-audit has produced HTML, whenever clean article text is needed for downstream scoring or query matching, or when signals suggest HIGH_BOILERPLATE_DENSITY, MODAL_INTERRUPT_OVERLAY, or GENERIC_DIV_SOUP.
+allowed-tools: Bash, Read
+license: MIT
 ---
 
 # Content Cleaner
