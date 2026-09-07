@@ -38,6 +38,21 @@ class SchemaNotFoundError(RuntimeError):
 
 
 @functools.lru_cache(maxsize=1)
+def data_root() -> Path:
+    """Directory holding the runtime data files (schemas/, ontology.yaml).
+
+    A wheel carries them at braiaudit/_data (see pyproject's force-include);
+    an editable install or a plain source checkout has only the canonical
+    copies at the repository root. Packaged data wins so an installed
+    braiaudit never depends on the checkout still being present.
+    """
+    packaged = Path(__file__).resolve().parent / "_data"
+    if (packaged / "schemas").is_dir():
+        return packaged
+    return repo_root()
+
+
+@functools.lru_cache(maxsize=1)
 def repo_root() -> Path:
     """Walk up from this file until a directory containing schemas/ and
     marketplace.json is found (the repository root)."""
@@ -58,7 +73,7 @@ def load_schema(name: str) -> dict[str, Any]:
     """Load a schema by short name (a key of _SCHEMA_FILENAMES)."""
     if name not in _SCHEMA_FILENAMES:
         raise KeyError(f"Unknown schema '{name}'. Known schemas: {sorted(_SCHEMA_FILENAMES)}")
-    path = repo_root() / "schemas" / _SCHEMA_FILENAMES[name]
+    path = data_root() / "schemas" / _SCHEMA_FILENAMES[name]
     with path.open(encoding="utf-8") as fh:
         return json.load(fh)
 

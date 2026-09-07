@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "braiaudit"
-version = "0.2.0"
+version = "0.7.1"
 description = "Brand AI Readiness Audit — reference implementation of the brand-ai-readiness-audit Claude Agent Skill set."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -47,11 +47,19 @@ Issues = "https://github.com/example/brand-ai-readiness-audit/issues"
 [project.scripts]
 braiaudit = "braiaudit.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/braiaudit"]
 
-[tool.setuptools.package-data]
-braiaudit = ["py.typed"]
+# The JSON Schemas and the failure ontology are runtime data, not merely repo
+# documentation — braiaudit.schemas and braiaudit.ontology load them on every
+# call. They live at the repository root because that is where every SKILL.md
+# links to them, so the build copies them into the package rather than moving
+# the canonical files. Without this, a non-editable `pip install .` yields a
+# package that imports fine and then fails on the first audit.
+[tool.hatch.build.targets.wheel.force-include]
+"schemas" = "braiaudit/_data/schemas"
+"skills/failure-diagnostics/references/ontology.yaml" = "braiaudit/_data/ontology.yaml"
+"marketplace.json" = "braiaudit/_data/marketplace.json"
 
 [tool.ruff]
 line-length = 100
