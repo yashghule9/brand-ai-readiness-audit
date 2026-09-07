@@ -9,11 +9,14 @@ mirrors.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 import urllib.parse
 import urllib.robotparser
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 from xml.etree import ElementTree
 
@@ -21,6 +24,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from braiaudit.schemas import validate
+
+logger = logging.getLogger("braiaudit.fetch")
 
 DEFAULT_USER_AGENT = "BrandAIReadinessAuditBot/1.0 (+https://example.com/bot)"
 
@@ -163,11 +168,19 @@ def fetch_robots(url: str, user_agent: str, session: requests.Session) -> Robots
     )
 
 
-def fetch_sitemap_urls(origin: str, declared: list[str], session: requests.Session) -> list[str]:
-    """Fetch sitemap(s) and return every <loc> URL found. Best-effort: a
-    missing or malformed sitemap yields an empty list, never an exception."""
+def fetch_sitemap_urls(
+    origin: str, declared: list[str], session: requests.Session
+) -> tuple[list[str], list[str]]:
+    """Fetch sitemap(s) and return (every <loc> URL, every <lastmod> value).
+
+    Best-effort: a missing or malformed sitemap yields empty lists, never an
+    exception. lastmod comes back because a sitemap whose dates are absent or
+    all identical tells a crawler nothing about what changed, which is a
+    staleness signal in its own right.
+    """
     candidates = declared or [urllib.parse.urljoin(origin, "/sitemap.xml")]
     urls: list[str] = []
+    lastmods: list[str] = []
     for sitemap_url in candidates:
         try:
             resp = session.get(sitemap_url, timeout=10)
@@ -177,9 +190,11 @@ def fetch_sitemap_urls(origin: str, declared: list[str], session: requests.Sessi
             ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
             locs = root.findall(".//sm:loc", ns) or root.findall(".//loc")
             urls.extend(loc.text.strip() for loc in locs if loc.text)
+            mods = root.findall(".//sm:lastmod", ns) or root.findall(".//lastmod")
+            lastmods.extend(m.text.strip() for m in mods if m.text)
         except (requests.RequestException, ElementTree.ParseError):
             continue
-    return urls
+    return urls, lastmods
 
 
 def _detect_anti_bot(status_code: int, headers: dict[str, str], body: str) -> str | None:
@@ -302,6 +317,97 @@ def analyse_structured_data(blocks: list[dict], visible_text: str) -> dict[str, 
     }
 
 
+_COPYRIGHT_YEAR = re.compile(
+    r"(?:\u00a9|&copy;|copyright)\s*(?:\d{4}\s*[-\u2013]\s*)?(\d{4})", re.I
+)
+_VISIBLE_YEAR = re.compile(r"\b(20\d{2})\b")
+
+# How stale a Last-Modified header has to be before it is worth reporting.
+# Long enough that a normally-maintained site never trips it.
+_STALE_HEADER_DAYS = 540
+
+# A page with this much prose and almost no headings reads as a wall of text.
+_WALL_OF_TEXT_CHARS = 2500
+_WALL_OF_TEXT_CHARS_PER_HEADING = 1200
+
+
+def _footer_copyright_year(text: str) -> int | None:
+    """The most recent year in a copyright notice, or None if there is none.
+
+    Takes the maximum rather than the first match: a page can carry both a
+    template notice and an article date, and the newest is the one that
+    reflects maintenance.
+    """
+    years = [int(m) for m in _COPYRIGHT_YEAR.findall(text)]
+    return max(years) if years else None
+
+
+def _header_age_days(last_modified: str | None) -> int | None:
+    """Age in days of a Last-Modified header, or None if absent/unparseable."""
+    if not last_modified:
+        return None
+    try:
+        stamp = parsedate_to_datetime(last_modified)
+    except (TypeError, ValueError):
+        return None
+    if stamp is None:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - stamp).days
+
+
+def _brand_names(soup: BeautifulSoup, blocks: list[dict]) -> dict[str, str]:
+    """Brand name as stated in each place a machine might read it."""
+    names: dict[str, str] = {}
+    og = soup.find("meta", attrs={"property": "og:site_name"})
+    if og and og.get("content"):
+        names["og:site_name"] = og["content"].strip()
+    for block in blocks:
+        if _types_of(block) & {"Organization", "Corporation", "Brand"}:
+            name = block.get("name")
+            if isinstance(name, str) and name.strip():
+                names["Organization.name"] = name.strip()
+                break
+    return names
+
+
+def _has_contact_details(soup: BeautifulSoup, blocks: list[dict]) -> bool:
+    """Whether any machine-readable way to contact or locate the operator
+    exists — a phone or mail link, a postal address, or ContactPoint markup.
+
+    Entity resolution leans on this: a consistent name-address-phone
+    signature is what separates a brand from others sharing its name.
+    """
+    if soup.find("a", href=lambda h: bool(h) and h.startswith(("tel:", "mailto:"))):
+        return True
+    if soup.find("address"):
+        return True
+    for block in blocks:
+        if block.get("address") or block.get("telephone") or block.get("contactPoint"):
+            return True
+        if _types_of(block) & {"ContactPoint", "PostalAddress"}:
+            return True
+    return False
+
+
+def _render_blocking_scripts(soup: BeautifulSoup) -> int:
+    """Scripts in <head> with neither async nor defer — they block parsing.
+
+    A lab proxy: it measures markup, not the load time a visitor experiences,
+    and is labelled `lab` in the ontology so it is never read as a field
+    measurement of performance.
+    """
+    head = soup.head
+    if head is None:
+        return 0
+    blocking = 0
+    for tag in head.find_all("script", src=True):
+        if tag.get("async") is None and tag.get("defer") is None:
+            blocking += 1
+    return blocking
+
+
 def _detect_root_container(soup: BeautifulSoup) -> bool:
     for container_id in _ROOT_CONTAINER_IDS:
         el = soup.find(id=container_id)
@@ -350,6 +456,15 @@ def observe(
         "schema_types": [],
         "structured_data_desync": "",
         "commerce_page_detected": False,
+        "parse_status": "ok",
+        "footer_copyright_year": None,
+        "last_modified_age_days": None,
+        "sitemap_lastmod_state": "",
+        "meta_description_present": False,
+        "h1_count": 0,
+        "breadcrumb_present": False,
+        "render_blocking_script_count": 0,
+        "brand_name_variants": "",
         "ai_crawler_access": {},
         "blocked_ai_crawlers": "",
         "anti_bot_evidence": "",
@@ -361,11 +476,13 @@ def observe(
     cached = origin_cache.get(origin) if origin_cache is not None else None
     if cached is None:
         robots = fetch_robots(url, user_agent, session)
-        sitemap_urls = fetch_sitemap_urls(origin, robots.sitemap_urls, session)
+        sitemap_urls, sitemap_lastmods = fetch_sitemap_urls(
+            origin, robots.sitemap_urls, session
+        )
         if origin_cache is not None:
-            origin_cache[origin] = (robots, sitemap_urls)
+            origin_cache[origin] = (robots, sitemap_urls, sitemap_lastmods)
     else:
-        robots, sitemap_urls = cached
+        robots, sitemap_urls, sitemap_lastmods = cached
 
     result["robots_txt"] = {
         "fetched": robots.fetched,
@@ -485,6 +602,96 @@ def observe(
         signals.append("data_src_attribute_present")
     schema = analyse_structured_data(_json_ld_blocks(soup), text)
     result["schema_types"] = schema["schema_types"]
+
+    # --- staleness / engagement / identity ------------------------------
+    # Wrapped as one unit: these all parse markup that varies wildly between
+    # sites, and a detector that cannot read what it expected must report
+    # "unknown" rather than "absent". Absence is an accusation; unknown is
+    # an admission, and only the second is honest when parsing failed.
+    try:
+        blocks = _json_ld_blocks(soup)
+
+        year = _footer_copyright_year(text)
+        result["footer_copyright_year"] = year
+        if year is not None and year < datetime.now(timezone.utc).year:
+            signals.append("stale_copyright_year")
+
+        age = _header_age_days(result["headers"].get("Last-Modified"))
+        result["last_modified_age_days"] = age
+        if age is None or age > _STALE_HEADER_DAYS:
+            signals.append("last_modified_stale_or_absent")
+
+        if not sitemap_lastmods:
+            result["sitemap_lastmod_state"] = (
+                "sitemap declares no <lastmod> dates, so a crawler cannot tell "
+                "which pages changed"
+            )
+            signals.append("sitemap_lastmod_meaningless")
+        elif len(set(sitemap_lastmods)) == 1 and len(sitemap_lastmods) > 1:
+            result["sitemap_lastmod_state"] = (
+                f"all {len(sitemap_lastmods)} sitemap <lastmod> values are "
+                f"identical ({sitemap_lastmods[0]}), which carries no "
+                "per-page change information"
+            )
+            signals.append("sitemap_lastmod_meaningless")
+
+        schema_years = {
+            int(y)
+            for b in blocks
+            for v in (b.get("dateModified"), b.get("datePublished"))
+            if isinstance(v, str)
+            for y in _VISIBLE_YEAR.findall(v)
+        }
+        if schema_years and year is not None and year > max(schema_years):
+            signals.append("visible_date_contradicts_schema")
+
+        h1s = soup.find_all("h1")
+        result["h1_count"] = len(h1s)
+        title_text = (soup.title.get_text(strip=True) if soup.title else "").strip()
+        if not h1s or not title_text:
+            signals.append("no_page_identifying_heading")
+
+        crumb = soup.find(attrs={"aria-label": re.compile("breadcrumb", re.I)}) or soup.find(
+            class_=re.compile("breadcrumb", re.I)
+        )
+        has_crumb_schema = any("BreadcrumbList" in _types_of(b) for b in blocks)
+        result["breadcrumb_present"] = bool(crumb or has_crumb_schema)
+        depth = len([p for p in urllib.parse.urlparse(url).path.split("/") if p])
+        if depth >= 2 and not result["breadcrumb_present"]:
+            signals.append("no_breadcrumb_trail")
+
+        desc = soup.find("meta", attrs={"name": re.compile("^description$", re.I)})
+        result["meta_description_present"] = bool(desc and (desc.get("content") or "").strip())
+        if not result["meta_description_present"]:
+            signals.append("meta_description_absent")
+
+        result["render_blocking_script_count"] = _render_blocking_scripts(soup)
+        if result["render_blocking_script_count"] > 3:
+            signals.append("render_blocking_scripts")
+
+        orgs = [b for b in blocks if _types_of(b) & {"Organization", "Corporation", "Brand"}]
+        if orgs and not any(b.get("logo") for b in orgs):
+            signals.append("organization_logo_missing")
+
+        names = _brand_names(soup, blocks)
+        if title_text:
+            names["title"] = title_text
+        distinct = {v.lower().strip() for v in names.values() if v}
+        if len(names) >= 2 and len(distinct) > 1:
+            # Only report when no stated name contains another: "Acme" inside
+            # "Acme | Pricing" is normal titling, not an inconsistency.
+            values = sorted(distinct)
+            if not any(a != b and a in b for a in values for b in values):
+                result["brand_name_variants"] = "; ".join(
+                    f"{k}={v!r}" for k, v in sorted(names.items())
+                )
+                signals.append("brand_name_inconsistent")
+
+        if not _has_contact_details(soup, blocks):
+            signals.append("contact_details_absent")
+    except Exception as exc:  # noqa: BLE001 - unknown, never a false accusation
+        result["parse_status"] = "unknown"
+        logger.warning("secondary detectors could not parse %s: %s", url, exc)
 
     commerce_page = bool(_COMMERCE_PATTERNS.search(text))
     result["commerce_page_detected"] = commerce_page

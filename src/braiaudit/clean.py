@@ -37,6 +37,11 @@ _QUESTION_WORDS = ("what", "how", "why", "when", "where", "which", "who", "is", 
 # How much of the main text counts as "above the fold" for the purpose of
 # asking whether the concrete answer (a price, a size, a number) is near the
 # top or buried under marketing copy.
+# Prose this long with almost no headings is a wall of text: a reader
+# arriving cold cannot scan it, and a chunker has no natural split points.
+_WALL_OF_TEXT_CHARS = 2500
+_CHARS_PER_HEADING = 1200
+
 _ABOVE_FOLD_CHARS = 600
 _MIN_LENGTH_FOR_FOLD_CHECK = 1500
 
@@ -142,6 +147,10 @@ def clean(url: str, html: str, source: str = "raw") -> dict[str, Any]:
     above_fold = clean_text[:_ABOVE_FOLD_CHARS]
 
     signals: list[str] = []
+    if len(clean_text) > _WALL_OF_TEXT_CHARS and (
+        not headings or len(clean_text) / len(headings) > _CHARS_PER_HEADING
+    ):
+        signals.append("wall_of_text_structure")
     if heading_texts and not question_shaped:
         signals.append("no_question_shaped_headings")
     if (

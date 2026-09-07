@@ -41,7 +41,7 @@
 # runtime — but a signal it lists must actually be emitted by some producer
 # or it will simply never fire.
 
-ontology_version: "1.9"
+ontology_version: "2.0"
 
 categories:
   rendering_and_execution:
@@ -620,6 +620,247 @@ failure_modes:
     recovery_strategy: information_architecture
     recommended_tool: none
     audit_finding_title: "Concrete Answers Are Buried Below The Opening Content"
+  # ---------------------------------------------------------------------
+  # 7. Maintenance signals, orientation and entity coherence
+  # ---------------------------------------------------------------------
+
+  STALE_COPYRIGHT_YEAR:
+    category: semantic_deficit
+    axis: staleness
+    severity: low
+    match_mode: all
+    signals: [stale_copyright_year]
+    description: >
+      The footer copyright notice names a year earlier than the current one.
+      Weak on its own — plenty of maintained sites hardcode it — which is
+      why it is scored low and is most useful as corroboration alongside
+      other maintenance signals rather than as a standalone verdict.
+    remediation: >
+      Render the copyright year from the server clock rather than hardcoding
+      it. It is a small thing that a reader and a crawler both read as a
+      proxy for whether anyone is still maintaining the site.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "Footer Copyright Year Is Out Of Date"
+
+  LAST_MODIFIED_STALE_OR_ABSENT:
+    category: semantic_deficit
+    axis: staleness
+    severity: low
+    match_mode: all
+    signals: [last_modified_stale_or_absent]
+    description: >
+      The response carries no Last-Modified header, or one older than about
+      eighteen months. Crawlers use it to decide whether a refetch is worth
+      it, so its absence makes recrawl scheduling guesswork rather than
+      informed.
+    remediation: >
+      Emit an accurate Last-Modified header for HTML responses, driven by
+      when the content actually changed rather than by deploy time. If a CDN
+      strips or rewrites it, fix that at the edge configuration.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "Last-Modified Header Is Missing Or Long Out Of Date"
+
+  SITEMAP_LASTMOD_MEANINGLESS:
+    category: discovery_and_pathing
+    axis: staleness
+    severity: medium
+    match_mode: all
+    signals: [sitemap_lastmod_meaningless]
+    evidence_metric: sitemap_lastmod_state
+    description: >
+      The sitemap declares no <lastmod> dates, or gives every URL the same
+      one. Either way it carries no per-page change information, so a
+      crawler cannot prioritise what actually moved and falls back to
+      recrawling on its own schedule — which is how updates go unnoticed for
+      weeks.
+    remediation: >
+      Emit a per-URL <lastmod> reflecting when that page's content last
+      changed, not when the sitemap was regenerated. Identical dates across
+      every entry are worse than none, because they look informative and
+      are not.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "Sitemap Change Dates Carry No Information"
+
+  VISIBLE_DATE_CONTRADICTS_SCHEMA:
+    category: semantic_deficit
+    axis: staleness
+    severity: medium
+    match_mode: all
+    signals: [visible_date_contradicts_schema]
+    description: >
+      The page shows a more recent year than its own structured data claims
+      as dateModified. A machine reading the markup concludes the content is
+      older than the page itself says it is, and freshness-sensitive
+      retrieval will weigh it accordingly.
+    remediation: >
+      Update dateModified in the same change as the visible content, and
+      make that a release-checklist rule rather than a convention. Where a
+      template renders a year automatically, drive the structured data from
+      the same source so the two cannot drift.
+    recovery_strategy: structured_data_review
+    recommended_tool: none
+    audit_finding_title: "Visible Dates Contradict The Page's Own Structured Data"
+
+  NO_PAGE_IDENTIFYING_HEADING:
+    category: content_noise
+    axis: engagement
+    severity: medium
+    match_mode: all
+    signals: [no_page_identifying_heading]
+    description: >
+      The page has no <h1>, or no title, so nothing states what it is. A
+      visitor arriving cold from a search result or an assistant's citation
+      has to infer the page's subject from body copy, and an extractor has
+      no anchor to attach the content to.
+    remediation: >
+      Give every page exactly one <h1> naming what the page is about, and a
+      <title> that identifies both the page and the brand. Templates that
+      render the site name alone in both places leave every page looking
+      identical to a machine.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Page Does Not State What It Is"
+
+  NO_BREADCRUMB_TRAIL:
+    category: discovery_and_pathing
+    axis: engagement
+    severity: low
+    match_mode: all
+    signals: [no_breadcrumb_trail]
+    description: >
+      A page several levels deep offers no breadcrumb trail, in markup or
+      as BreadcrumbList structured data. A visitor who arrived directly —
+      which is what an assistant citation produces — has no sense of where
+      they are in the site or how to move up.
+    remediation: >
+      Add a breadcrumb trail to templates below the top level, and mark it up
+      as BreadcrumbList. It orients direct arrivals and gives extraction a
+      cheap, reliable read on site hierarchy.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Deep Page Offers No Breadcrumb Trail"
+
+  META_DESCRIPTION_ABSENT:
+    category: semantic_deficit
+    axis: engagement
+    severity: low
+    match_mode: all
+    signals: [meta_description_absent]
+    description: >
+      No meta description. That string is what search results and many AI
+      citations render as the page's summary, so its absence leaves the
+      snippet to be auto-generated from whatever text happens to come first.
+    remediation: >
+      Write a specific meta description per page stating what the page
+      answers. Auto-generated snippets tend to surface navigation text or
+      boilerplate, which is a poor advertisement for the page in the one
+      place a reader decides whether to click.
+    recovery_strategy: content_authoring
+    recommended_tool: none
+    audit_finding_title: "Page Has No Meta Description"
+
+  WALL_OF_TEXT:
+    category: content_noise
+    axis: engagement
+    severity: medium
+    match_mode: all
+    signals: [wall_of_text_structure]
+    description: >
+      Substantial prose with almost no heading structure. A reader arriving
+      cold cannot scan it to find the part they came for, and a chunking
+      pipeline has no natural split points, so passages get divided
+      arbitrarily and separated from their context.
+    remediation: >
+      Break long content with headings that name what each section answers,
+      roughly one every few hundred words. This serves the scanning reader
+      and the chunker at once — both are looking for the same boundaries.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Long Content Has Almost No Heading Structure"
+
+  RENDER_BLOCKING_SCRIPTS:
+    category: rendering_and_execution
+    axis: engagement
+    severity: low
+    signal_type: lab
+    match_mode: all
+    signals: [render_blocking_scripts]
+    description: >
+      Several scripts in <head> carry neither async nor defer, so they block
+      parsing before anything renders. This is a lab signal: it counts
+      markup, and does not observe what a visitor's connection actually
+      experiences. Treat it as a hypothesis to confirm with field data, not
+      as a measurement of load time.
+    remediation: >
+      Add defer (or async where order does not matter) to head scripts, or
+      move them to the end of body. Then confirm against real field data —
+      this check reads markup and cannot tell you what visitors experience.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Render-Blocking Scripts In Document Head"
+
+  ORGANIZATION_LOGO_MISSING:
+    category: semantic_deficit
+    axis: identity
+    severity: low
+    match_mode: all
+    signals: [organization_logo_missing]
+    description: >
+      Organization markup exists but declares no logo. The logo property is
+      one of the few machine-readable handles on brand identity, and
+      knowledge panels and entity records draw on it directly.
+    remediation: >
+      Add a logo URL to the Organization schema, pointing at a stable,
+      publicly fetchable image. Keep it in step with the visible brand mark
+      so the two cannot drift apart across a rebrand.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Organization Schema Declares No Logo"
+
+  BRAND_NAME_INCONSISTENT:
+    category: semantic_deficit
+    axis: identity
+    severity: medium
+    match_mode: all
+    signals: [brand_name_inconsistent]
+    evidence_metric: brand_name_variants
+    description: >
+      The brand is named differently across the page title, og:site_name and
+      Organization schema, with no one form containing another. Entity
+      resolution leans on a consistent signature, so several spellings of the
+      same brand weaken the link between them and make collision with a
+      same-named entity more likely.
+    remediation: >
+      Settle on one canonical brand string and use it byte-identically in
+      Organization.name, og:site_name and the brand portion of every title.
+      Reserve variation for the page-specific half of the title.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Brand Is Named Inconsistently Across The Page"
+
+  CONTACT_DETAILS_ABSENT:
+    category: semantic_deficit
+    axis: identity
+    severity: medium
+    match_mode: all
+    signals: [contact_details_absent]
+    description: >
+      No machine-readable way to contact or locate the operator — no tel or
+      mailto link, no postal address, no ContactPoint markup. A consistent
+      name-address-phone signature is a large part of what distinguishes a
+      brand from others sharing its name, and its absence leaves entity
+      resolution with less to work from.
+    remediation: >
+      Publish contact details in markup, not only in an image or a contact
+      form: a tel/mailto link, a postal address, or ContactPoint structured
+      data. Keep the same details across every directory listing so the
+      signature is consistent wherever it is encountered.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "No Machine-Readable Contact Or Location Details"
 
 # =====================================================================
 # Proactive opportunities

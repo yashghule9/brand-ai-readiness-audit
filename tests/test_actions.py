@@ -108,19 +108,19 @@ def test_score_penalises_by_severity_and_splits_by_axis():
     readiness = report["summary"]
     # Each axis is scored against its own evaluable weight, never the others'.
     # visibility: 25 lost of 131 evaluable  -> 81
-    # staleness:  12 lost of  36 evaluable  -> 67
+    # staleness:  12 lost of  50 evaluable  -> 76
     assert readiness["by_axis"]["visibility"]["score"] == 81
-    assert readiness["by_axis"]["staleness"]["score"] == 67
+    assert readiness["by_axis"]["staleness"]["score"] == 76
     assert readiness["by_axis"]["engagement"]["score"] == 100
     assert readiness["by_axis"]["engagement"]["findings"] == 0
-    # Overall is the same computation across every axis: 37 of 191.
-    assert readiness["readiness_score"] == 81
+    # Overall is the same computation across every axis: 37 of 233.
+    assert readiness["readiness_score"] == 84
     # The rule has to be reproducible by hand, not a black box.
     assert "never normalised against each" in readiness["score_formula"]
 
     # evidence_basis distinguishes thin-by-nature from thin-by-detector-count.
     basis = readiness["by_axis"]["identity"]["evidence_basis"]
-    assert basis == {"modes_fired": 0, "modes_possible": 2}
+    assert basis == {"modes_fired": 0, "modes_possible": 5}
 
 
 def test_repeated_failure_mode_is_penalised_once_not_per_page():
@@ -157,8 +157,8 @@ def test_score_floors_at_zero():
     assert report["summary"]["critical"] == 3
     # An axis cannot lose more than its own evaluable weight, so a pile-up
     # floors that axis at 0 rather than dragging the whole report negative.
-    assert report["summary"]["by_axis"]["staleness"]["score"] == 67
-    assert report["summary"]["readiness_score"] < 60
+    assert report["summary"]["by_axis"]["staleness"]["score"] == 76
+    assert report["summary"]["readiness_score"] < 80
 
 
 def test_evidence_leads_with_the_fact_not_a_metric_dump():
@@ -219,7 +219,7 @@ def test_real_defects_still_score_alongside_a_limitation():
     )
     assert report["summary"]["total_findings"] == 1
     # Only the defect scores; the limitation does not.
-    assert report["summary"]["readiness_score"] == 97
+    assert report["summary"]["readiness_score"] == 98
     assert len(report["audit_limitations"]) == 1
 
 
