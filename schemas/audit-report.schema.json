@@ -49,12 +49,47 @@
           "minimum": 0
         },
         "readiness_score": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 100
         },
         "by_axis": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 100,
+                "description": "null when no mode on this axis could be evaluated \u2014 an absent score, not a perfect one."
+              },
+              "findings": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "evidence_basis": {
+                "type": "object",
+                "description": "How much of this axis was actually inspected, so thin-by-nature is distinguishable from thin-by-detector-count.",
+                "properties": {
+                  "modes_fired": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "modes_possible": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
         },
         "score_formula": {
           "type": "string"
@@ -294,6 +329,35 @@
           }
         }
       }
+    },
+    "provenance": {
+      "type": "array",
+      "description": "Provenance for qualitative, unscored observations: what was asked, when, and by which model. Empty when the run carried none.",
+      "items": {
+        "type": "object",
+        "required": [
+          "observed_at",
+          "source"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "Model or agent that made the observation."
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -373,6 +437,29 @@
             "low"
           ],
           "description": "How well the sample supports this finding, separate from severity. Severity is how bad the problem is; confidence is how sure we are it is real and site-wide. 'high' means observed on every page crawled (with a meaningful sample) or directly observed as a policy fact; 'low' means seen on a minority of pages."
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "scored",
+            "qualitative"
+          ],
+          "description": "'scored': machine-observed and counted in the readiness score. 'qualitative': a single-sample observation that never affects a score."
+        },
+        "signal_type": {
+          "type": "string",
+          "enum": [
+            "lab",
+            "field"
+          ]
+        },
+        "parse_status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "unknown"
+          ],
+          "description": "'unknown' means a detector could not read the markup. It scores nothing and must never be rendered as an accusation."
         }
       }
     }

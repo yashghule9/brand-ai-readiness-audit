@@ -38,6 +38,12 @@ class FailureMode:
     # (something this audit could not check). Limitations are reported
     # separately and never scored — see the ontology header.
     kind: str = "defect"
+    # "field": observed on the real site as a visitor or crawler would meet
+    # it. "lab": a proxy measured in controlled conditions that stands in for
+    # a real-world property it cannot observe directly (page weight standing
+    # in for load performance). Kept distinct so a proxy is never read as a
+    # measurement of the thing it proxies.
+    signal_type: str = "field"
     # Name of the metric that carries this mode's headline evidence. Without
     # it a finding's evidence is a dump of every metric on the page, which
     # buries the one fact that actually demonstrates the problem.
@@ -134,6 +140,7 @@ def load_ontology() -> Ontology:
             audit_finding_title=fm["audit_finding_title"],
             axis=fm.get("axis", "visibility"),
             kind=fm.get("kind", "defect"),
+            signal_type=fm.get("signal_type", "field"),
             evidence_metric=fm.get("evidence_metric", ""),
             remediation=(fm.get("remediation") or "").strip(),
         )
@@ -209,6 +216,8 @@ def diagnose(
                 "severity": fm.severity,
                 "evidence": evidence,
                 "matched_signals": sorted(overlap),
+                "signal_type": fm.signal_type,
+                "parse_status": (metrics.get("parse_status") or "ok"),
                 "suggested_action": {
                     "summary": fm.remediation
                     or (

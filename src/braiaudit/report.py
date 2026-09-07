@@ -22,7 +22,11 @@ _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
 # Bumped when the report's top-level shape changes, so a consumer can tell
 # which contract it is reading rather than guessing from the keys present.
-SCHEMA_VERSION = "1.0"
+# 2.0: per-axis scores became a percentage of that axis's own weighted
+# evaluable modes rather than "100 minus penalties". Adding failure modes
+# changes an axis's denominator, so scores are comparable only within a
+# schema version — hence the stamp on every report.
+SCHEMA_VERSION = "2.0"
 
 # compliance_and_access findings are policy statements, not statistical
 # patterns — a single confirmed hit is fully corroborated regardless of
@@ -74,6 +78,8 @@ def assemble_report(
                 "severity": fm.severity,
                 "evidence": evidence,
                 "confidence": confidence,
+                "signal_type": fm.signal_type,
+                "parse_status": _parse_status(occurrences),
                 "suggested_action": occurrences[0][1]["suggested_action"],
                 "_affected_urls": urls,
             }
@@ -120,6 +126,12 @@ def assemble_report(
                 "category": f["category"],
                 "axis": f["axis"],
                 "confidence": f["confidence"],
+                # Everything in `findings` is machine-observed. Qualitative,
+                # single-sample observations never land here; they carry
+                # source_type "qualitative" and live outside the score.
+                "source_type": "scored",
+                "signal_type": f["signal_type"],
+                "parse_status": f["parse_status"],
             }
         )
 
@@ -130,7 +142,8 @@ def assemble_report(
         "medium": sum(1 for f in findings if f["severity"] == "medium"),
     }
 
-    readiness = _score(findings)
+    evaluable = coverage_mod.evaluable_modes_by_axis(skills_engaged or set(), ontology)
+    readiness = _score(findings, evaluable)
     opportunities = _opportunities(findings, ontology)
     report = {
         "schema_version": SCHEMA_VERSION,
@@ -143,6 +156,9 @@ def assemble_report(
             "domain": site,
             "url": seed_url or f"https://{site}/",
         },
+        # Written by the qualitative (unscored) path only. Empty here means
+        # no single-sample observation was attached to this run.
+        "provenance": [],
         "summary": {
             **summary,
             "readiness_score": readiness["score"],
@@ -189,29 +205,61 @@ _SCORE_PENALTY = {"critical": 25, "high": 12, "medium": 5, "low": 2}
 _AXES = ("visibility", "staleness", "engagement", "identity")
 
 
-def _score(findings: list[dict[str, Any]]) -> dict[str, Any]:
-    """Headline 0-100 readiness score plus a per-axis breakdown.
+def _score(
+    findings: list[dict[str, Any]], evaluable: dict[str, list[Any]]
+) -> dict[str, Any]:
+    """Per-axis score as a percentage of that axis's own weighted evaluable
+    modes, plus an overall score computed the same way across all axes.
 
-    Only findings score — opportunities never do. A recommendation the site
-    has not failed is advice, and penalising a brand for advice would make
-    the score unreadable.
+    Each axis is scored strictly against itself. Axes are never normalised
+    against one another: a visibility axis with sixteen modes and an identity
+    axis with two are not on a common ruler, and forcing them onto one would
+    make every number move whenever any mode is added anywhere.
+
+    The denominator counts only modes this run could actually evaluate. A
+    check gated behind a skill that never ran is not something the site
+    passed, so including it would inflate the score exactly where the audit
+    is weakest.
+
+    Only findings score. Opportunities are advice, and limitations describe
+    the audit rather than the site; neither belongs in either term.
     """
+    by_axis: dict[str, Any] = {}
+    total_lost = 0
+    total_possible = 0
 
-    def score_for(subset: list[dict[str, Any]]) -> int:
-        return max(0, 100 - sum(_SCORE_PENALTY[f["severity"]] for f in subset))
+    for axis in _AXES:
+        axis_findings = [f for f in findings if f["axis"] == axis]
+        modes = evaluable.get(axis, [])
+        possible = sum(_SCORE_PENALTY[m.severity] for m in modes)
+        lost = sum(_SCORE_PENALTY[f["severity"]] for f in axis_findings)
+        lost = min(lost, possible)
+
+        total_lost += lost
+        total_possible += possible
+
+        by_axis[axis] = {
+            # No evaluable modes means nothing was checked on this axis. That
+            # is not a perfect score; it is an absent one.
+            "score": round(100 * (1 - lost / possible)) if possible else None,
+            "findings": len(axis_findings),
+            "evidence_basis": {
+                "modes_fired": len(axis_findings),
+                "modes_possible": len(modes),
+            },
+        }
 
     return {
-        "score": score_for(findings),
-        "by_axis": {
-            axis: {
-                "score": score_for([f for f in findings if f["axis"] == axis]),
-                "findings": sum(1 for f in findings if f["axis"] == axis),
-            }
-            for axis in _AXES
-        },
+        "score": round(100 * (1 - total_lost / total_possible)) if total_possible else None,
+        "by_axis": by_axis,
         "formula": (
-            "100 minus 25 per critical, 12 per high, 5 per medium and 2 per low "
-            "finding, floored at 0. Proactive suggestions never affect the score."
+            "Per axis: 100 x (1 - weight of failed modes / weight of that axis's "
+            "evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. "
+            "Axes are scored against themselves and never normalised against each "
+            "other. null means nothing on that axis could be evaluated. Adding "
+            "failure modes changes an axis's denominator, so scores are comparable "
+            "only between runs with the same schema_version. Opportunities and "
+            "audit limitations never affect the score."
         ),
     }
 
@@ -266,9 +314,23 @@ def _headline(
     checked as well as what was found — a score with no sample size behind
     it invites more confidence than the evidence supports."""
     critical = sum(1 for f in findings if f["severity"] == "critical")
-    weakest = min(
-        readiness["by_axis"].items(),
-        key=lambda kv: (kv[1]["score"], kv[0]),
+
+    # Name the axis carrying the most findings, not the lowest score. Axis
+    # scores are percentages of different denominators — an axis with two
+    # evaluable modes swings between 0 and 100 in single steps, while one
+    # with twelve moves smoothly — so "lowest score wins" would keep electing
+    # whichever axis happens to be coarsest rather than whichever is worst.
+    # Axes that could not be evaluated at all are excluded: they have nothing
+    # to say either way.
+    scored_axes = [
+        (axis, data)
+        for axis, data in readiness["by_axis"].items()
+        if data["score"] is not None and data["findings"]
+    ]
+    worst = (
+        max(scored_axes, key=lambda kv: (kv[1]["findings"], -kv[1]["score"], kv[0]))
+        if scored_axes
+        else None
     )
 
     if not pages_crawled:
@@ -282,10 +344,13 @@ def _headline(
         problem = f"{len(findings)} issue(s)"
         if critical:
             problem += f", {critical} of them critical,"
-        head = (
-            f"{problem} were found across {pages_crawled} page(s) of {site}; "
-            f"the weakest area is {weakest[0]} at {weakest[1]['score']}/100."
-        )
+        head = f"{problem} were found across {pages_crawled} page(s) of {site}"
+        if worst:
+            head += (
+                f", most of them on {worst[0]} "
+                f"({worst[1]['findings']} of {len(findings)})"
+            )
+        head += "."
     if limitations:
         head += f" {len(limitations)} check(s) could not be completed."
     return head
@@ -323,6 +388,17 @@ def _top_priorities(
     # lets speculative advice crowd out an observed defect.
     ranked.sort(key=lambda a: (a["type"] == "opportunity", _SEVERITY_RANK[a["priority"]]))
     return ranked[:3]
+
+
+def _parse_status(occurrences: list[tuple[str, dict[str, Any]]]) -> str:
+    """`unknown` if any contributing observation could not be parsed.
+
+    A detector that failed to read the markup must never have its silence
+    read as "the site is fine" — nor, worse, as "the signal is bad". Unknown
+    propagates up and scores nothing.
+    """
+    statuses = {o[1].get("parse_status", "ok") for o in occurrences}
+    return "unknown" if "unknown" in statuses else "ok"
 
 
 def _confidence(category: str, pages_hit: int, pages_crawled: int) -> str:

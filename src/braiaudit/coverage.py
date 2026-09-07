@@ -72,6 +72,26 @@ def _mode_evaluated(signals: frozenset[str], match_mode: str, engaged: set[str])
     return all(source in engaged for source in sources)
 
 
+def evaluable_modes_by_axis(
+    engaged_skills: set[str], ontology: Ontology | None = None
+) -> dict[str, list[Any]]:
+    """Failure modes per axis that this run was actually able to evaluate.
+
+    The scoring denominator: a mode gated behind a skill that never ran is
+    not something the site passed, so counting it as achievable would inflate
+    the score exactly where the audit is weakest.
+    """
+    ontology = ontology or load_ontology()
+    by_axis: dict[str, list[Any]] = {}
+    for mode in ontology.failure_modes.values():
+        if mode.kind == "limitation":
+            continue
+        if not _mode_evaluated(mode.signals, mode.match_mode, engaged_skills):
+            continue
+        by_axis.setdefault(mode.axis, []).append(mode)
+    return by_axis
+
+
 def compute_coverage(engaged_skills: set[str], ontology: Ontology | None = None) -> dict[str, Any]:
     """Return per-category and overall coverage given the set of skill
     "sources" actually engaged this run (see SIGNAL_SOURCES and

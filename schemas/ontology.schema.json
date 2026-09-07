@@ -137,6 +137,15 @@
           ],
           "default": "defect",
           "description": "'defect': something is wrong with the site; appears in findings and counts against the score. 'limitation': something the audit could not check; reported under audit_limitations and never scored, because a brand must not lose points for a tool the auditor lacked."
+        },
+        "signal_type": {
+          "type": "string",
+          "enum": [
+            "lab",
+            "field"
+          ],
+          "default": "field",
+          "description": "'field': observed on the real site as a visitor or crawler would meet it. 'lab': a controlled proxy standing in for a real-world property it cannot observe directly. Kept distinct so a proxy is never read as a measurement of the thing it proxies."
         }
       }
     },

@@ -7,12 +7,18 @@ from __future__ import annotations
 from braiaudit.ontology import diagnose, load_ontology
 from braiaudit.report import assemble_report
 
+# The static-only producer set: what a run without a render backend engages.
+# Passing it matters — the scoring denominator counts only modes a run could
+# actually evaluate, so an empty set correctly yields null scores.
+ENGAGED = {"pipeline", "website-observer", "content-cleaner", "query-guided-discovery"}
 
-def _report(findings_by_url, pages_crawled=1):
+
+def _report(findings_by_url, pages_crawled=1, engaged=None):
     return assemble_report(
         site="example.com",
         findings_by_url=findings_by_url,
         pages_crawled=pages_crawled,
+        skills_engaged=ENGAGED if engaged is None else engaged,
     )
 
 
@@ -100,14 +106,21 @@ def test_score_penalises_by_severity_and_splits_by_axis():
     )
 
     readiness = report["summary"]
-    # one critical (-25) and one high (-12) → 63
-    assert readiness["readiness_score"] == 63
-    assert readiness["by_axis"]["visibility"]["score"] == 75
-    assert readiness["by_axis"]["staleness"]["score"] == 88
+    # Each axis is scored against its own evaluable weight, never the others'.
+    # visibility: 25 lost of 131 evaluable  -> 81
+    # staleness:  12 lost of  36 evaluable  -> 67
+    assert readiness["by_axis"]["visibility"]["score"] == 81
+    assert readiness["by_axis"]["staleness"]["score"] == 67
     assert readiness["by_axis"]["engagement"]["score"] == 100
     assert readiness["by_axis"]["engagement"]["findings"] == 0
+    # Overall is the same computation across every axis: 37 of 191.
+    assert readiness["readiness_score"] == 81
     # The rule has to be reproducible by hand, not a black box.
-    assert "25 per critical" in readiness["score_formula"]
+    assert "never normalised against each" in readiness["score_formula"]
+
+    # evidence_basis distinguishes thin-by-nature from thin-by-detector-count.
+    basis = readiness["by_axis"]["identity"]["evidence_basis"]
+    assert basis == {"modes_fired": 0, "modes_possible": 2}
 
 
 def test_repeated_failure_mode_is_penalised_once_not_per_page():
@@ -122,7 +135,8 @@ def test_repeated_failure_mode_is_penalised_once_not_per_page():
     report = _report(per_url, pages_crawled=10)
 
     assert report["summary"]["total_findings"] == 1
-    assert report["summary"]["readiness_score"] == 75
+    # One critical worth 25, against visibility's 131 evaluable weight.
+    assert report["summary"]["by_axis"]["visibility"]["score"] == 81
 
 
 def test_score_floors_at_zero():
@@ -141,7 +155,10 @@ def test_score_floors_at_zero():
     report = _report({"https://example.com/": findings})
 
     assert report["summary"]["critical"] == 3
-    assert report["summary"]["readiness_score"] == 0  # 104 penalty, floored
+    # An axis cannot lose more than its own evaluable weight, so a pile-up
+    # floors that axis at 0 rather than dragging the whole report negative.
+    assert report["summary"]["by_axis"]["staleness"]["score"] == 67
+    assert report["summary"]["readiness_score"] < 60
 
 
 def test_evidence_leads_with_the_fact_not_a_metric_dump():
@@ -202,7 +219,7 @@ def test_real_defects_still_score_alongside_a_limitation():
     )
     assert report["summary"]["total_findings"] == 1
     # Only the defect scores; the limitation does not.
-    assert report["summary"]["readiness_score"] == 95
+    assert report["summary"]["readiness_score"] == 97
     assert len(report["audit_limitations"]) == 1
 
 
@@ -265,3 +282,52 @@ def test_verified_findings_outrank_advice_in_top_priorities():
     finding_positions = [i for i, t in enumerate(top) if t["type"] == "finding"]
     opportunity_positions = [i for i, t in enumerate(top) if t["type"] == "opportunity"]
     assert max(finding_positions) < min(opportunity_positions)
+
+
+def test_reports_from_before_the_scoring_change_still_validate():
+    """Adding modes changes an axis's denominator, so scores shift between
+    schema versions. Old reports must keep validating and keep their own
+    stamp — cross-version comparison is an explicit re-run, never a silent
+    rebase of stored output."""
+    from braiaudit.schemas import is_valid
+
+    legacy = {
+        "site": "example.com",
+        "audited_at": "2026-09-01T00:00:00Z",
+        "summary": {"total_findings": 1, "critical": 0, "high": 1, "medium": 0},
+        "findings": [
+            {
+                "id": "F-001",
+                "title": "No Schema.org / JSON-LD Structured Data Available",
+                "severity": "high",
+                "evidence": "Crawled 3 page(s); 3/3 exhibit this failure mode.",
+                "suggested_action": {"summary": "Add JSON-LD.", "priority": "high"},
+            }
+        ],
+    }
+    ok, err = is_valid(legacy, "audit-report")
+    assert ok, err
+
+
+def test_an_axis_with_nothing_evaluable_scores_null_not_perfect():
+    """A score of 100 for an axis nobody could check is the exact dishonesty
+    this schema exists to prevent."""
+    report = _report({}, engaged={"pipeline"})
+    by_axis = report["summary"]["by_axis"]
+    assert all(a["score"] is None for a in by_axis.values())
+    assert all(a["evidence_basis"]["modes_possible"] == 0 for a in by_axis.values())
+    assert report["summary"]["readiness_score"] is None
+
+
+def test_unknown_parse_status_propagates_and_never_reads_as_a_fault():
+    """A detector that cannot read the markup must not have its silence
+    scored as 'the site is fine', nor its failure as 'the signal is bad'."""
+    findings = diagnose(
+        "https://example.com/",
+        ["missing_schema_org"],
+        metrics={"parse_status": "unknown"},
+    )["findings"]
+    assert findings[0]["parse_status"] == "unknown"
+
+    report = _report({"https://example.com/": findings})
+    assert report["findings"][0]["parse_status"] == "unknown"
