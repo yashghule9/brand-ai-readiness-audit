@@ -4,25 +4,49 @@
   "title": "WebFailureOntology",
   "description": "Meta-schema validating skills/failure-diagnostics/references/ontology.yaml. CI runs this on every change to the knowledge base.",
   "type": "object",
-  "required": ["ontology_version", "categories", "failure_modes"],
+  "required": [
+    "ontology_version",
+    "categories",
+    "failure_modes"
+  ],
   "properties": {
-    "ontology_version": { "type": "string" },
+    "ontology_version": {
+      "type": "string"
+    },
     "categories": {
       "type": "object",
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
-        "required": ["label", "description"],
+        "required": [
+          "label",
+          "description"
+        ],
         "properties": {
-          "label": { "type": "string", "minLength": 1 },
-          "description": { "type": "string", "minLength": 1 }
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "failure_modes": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": { "$ref": "#/$defs/failureMode" }
+      "additionalProperties": {
+        "$ref": "#/$defs/failureMode"
+      }
+    },
+    "opportunities": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/opportunity"
+      },
+      "description": "Proactive recommendations emitted independently of any detected defect, so a clean audit still returns useful advice. These carry no evidence and never affect the readiness score."
     }
   },
   "$defs": {
@@ -35,26 +59,132 @@
         "description",
         "recovery_strategy",
         "recommended_tool",
-        "audit_finding_title"
+        "audit_finding_title",
+        "axis"
       ],
       "properties": {
-        "category": { "type": "string", "minLength": 1 },
-        "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
         "match_mode": {
           "type": "string",
-          "enum": ["all", "any"],
+          "enum": [
+            "all",
+            "any"
+          ],
           "default": "all",
           "description": "'all': every listed signal must be present. 'any': a single listed signal is sufficient. Defaults to 'all' when omitted."
         },
         "signals": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
         },
-        "description": { "type": "string", "minLength": 1 },
-        "recovery_strategy": { "type": "string", "minLength": 1 },
-        "recommended_tool": { "type": "string", "minLength": 1 },
-        "audit_finding_title": { "type": "string", "minLength": 1 }
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "remediation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the site owner should change, written for the brand's engineer. Used as the report's suggested_action when present; recovery_strategy/recommended_tool describe the auditor's next step instead and are only a fallback."
+        },
+        "recovery_strategy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recommended_tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audit_finding_title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis": {
+          "type": "string",
+          "enum": [
+            "visibility",
+            "staleness",
+            "engagement",
+            "identity"
+          ],
+          "description": "Which brand-facing problem this failure mode belongs to. Groups the report by the questions a brand asks (why am I invisible / why is my info stale / why do referrals bounce / why am I confused with someone else) rather than by the auditor's internal categories."
+        },
+        "evidence_metric": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Name of the producer metric that carries this mode's headline evidence, used verbatim as the finding's evidence. Without it the evidence is a dump of every metric observed on the page, which buries the fact that actually demonstrates the problem."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "defect",
+            "limitation"
+          ],
+          "default": "defect",
+          "description": "'defect': something is wrong with the site; appears in findings and counts against the score. 'limitation': something the audit could not check; reported under audit_limitations and never scored, because a brand must not lose points for a tool the auditor lacked."
+        }
+      }
+    },
+    "opportunity": {
+      "type": "object",
+      "required": [
+        "axis",
+        "priority",
+        "rationale",
+        "action"
+      ],
+      "properties": {
+        "axis": {
+          "type": "string",
+          "enum": [
+            "visibility",
+            "staleness",
+            "engagement",
+            "identity"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this matters, in brand terms."
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What to do, written for the site owner."
+        },
+        "suppressed_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]+$"
+          },
+          "description": "Failure modes whose own remediation already covers this ground. When any of them fired, the opportunity is dropped to avoid saying the same thing twice."
+        }
       }
     }
   }
