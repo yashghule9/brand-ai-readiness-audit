@@ -1,6 +1,8 @@
 ---
 name: query-guided-discovery
 description: Given one or more target queries/topics and a page's internal link graph (from website-observer, crawl-render-audit, and sitemap.xml), scores and ranks candidate internal subpages by relevance, crawls the top-ranked candidates to check whether the query can actually be answered, and flags pages with zero incoming links or absent from the sitemap. Use when a single page only partially answers a target query (suspected DISTRIBUTED_INFORMATION_FRAGMENTATION), or when checking site-wide discoverability, including orphaned-page detection.
+allowed-tools: Bash, Read, WebFetch
+license: MIT
 ---
 
 # Query-Guided Discovery

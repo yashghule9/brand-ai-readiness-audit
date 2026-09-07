@@ -1,7 +1,6 @@
 {
-  "$schema": "https://schemas.anthropic.com/claude/skill-marketplace/v1.json",
-  "marketplace_name": "brand-ai-readiness-audit",
-  "marketplace_version": "1.1.0",
+  "name": "brand-ai-readiness-audit",
+  "version": "1.2.0",
   "description": "Modular skill set that audits a brand's website for AI-crawler and AI-agent readiness: renderability, content noise, discoverability, structured-data completeness, and crawl-compliance posture.",
   "maintainers": [
     {
@@ -9,67 +8,42 @@
       "contact": "ecgenius.life@gmail.com"
     }
   ],
-  "orchestrator": "brand-ai-readiness-audit",
   "skills": [
     {
-      "name": "brand-ai-readiness-audit",
-      "path": "./SKILL.md",
-      "role": "orchestrator",
-      "summary": "Master orchestrator that sequences every sub-skill and emits the final audit report.",
-      "version": "1.1.0"
+      "id": "brand-ai-readiness-audit",
+      "path": "skills/brand-ai-readiness-audit",
+      "summary": "Entrypoint. Receives the audit request, sequences every capability skill below, and emits the single audit report.",
+      "entrypoint": true
     },
     {
-      "name": "website-observer",
-      "path": "./skills/website-observer/SKILL.md",
-      "role": "capability",
-      "summary": "Low-overhead HTTP/DOM inspection without JavaScript execution.",
-      "version": "1.0.0"
+      "id": "website-observer",
+      "path": "skills/website-observer",
+      "summary": "Low-overhead HTTP/DOM inspection without JavaScript execution."
     },
     {
-      "name": "failure-diagnostics",
-      "path": "./skills/failure-diagnostics/SKILL.md",
-      "role": "capability",
-      "summary": "Maps raw technical signals to the Web Failure Ontology to produce scored findings.",
-      "version": "1.0.0",
-      "references": [
-        "./skills/failure-diagnostics/references/ontology.yaml"
-      ]
+      "id": "crawl-render-audit",
+      "path": "skills/crawl-render-audit",
+      "summary": "Headless Playwright/Chromium rendering, scroll/interaction driving, and shadow-DOM traversal."
     },
     {
-      "name": "crawl-render-audit",
-      "path": "./skills/crawl-render-audit/SKILL.md",
-      "role": "capability",
-      "summary": "Headless Playwright/Chromium rendering, scroll/interaction driving, and shadow-DOM traversal.",
-      "version": "1.0.0"
+      "id": "content-cleaner",
+      "path": "skills/content-cleaner",
+      "summary": "Main-content extraction and boilerplate/noise removal."
     },
     {
-      "name": "content-cleaner",
-      "path": "./skills/content-cleaner/SKILL.md",
-      "role": "capability",
-      "summary": "Main-content extraction and boilerplate/noise removal.",
-      "version": "1.0.0"
+      "id": "query-guided-discovery",
+      "path": "skills/query-guided-discovery",
+      "summary": "Multi-page internal link scoring and fragmented-information discovery."
     },
     {
-      "name": "query-guided-discovery",
-      "path": "./skills/query-guided-discovery/SKILL.md",
-      "role": "capability",
-      "summary": "Multi-page internal link scoring and fragmented-information discovery.",
-      "version": "1.0.0"
+      "id": "failure-diagnostics",
+      "path": "skills/failure-diagnostics",
+      "summary": "Maps raw technical signals to the Web Failure Ontology to produce scored findings."
     },
     {
-      "name": "freshness-corroboration",
-      "path": "./skills/freshness-corroboration/SKILL.md",
-      "role": "capability",
-      "summary": "Aggregates evidence, corroborates findings, runs coverage/validation meta-analysis, and emits the final floor-schema JSON audit report.",
-      "version": "1.1.0"
+      "id": "freshness-corroboration",
+      "path": "skills/freshness-corroboration",
+      "summary": "Aggregates evidence, corroborates findings, runs coverage/validation meta-analysis, and emits the final floor-schema JSON audit report."
     }
-  ],
-  "execution_order": [
-    "website-observer",
-    "crawl-render-audit",
-    "content-cleaner",
-    "query-guided-discovery",
-    "failure-diagnostics",
-    "freshness-corroboration"
   ]
 }

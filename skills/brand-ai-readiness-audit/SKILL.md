@@ -1,14 +1,16 @@
 ---
 name: brand-ai-readiness-audit
 description: Orchestrates a full Brand AI Readiness Audit of a website — evaluating how reliably its content can be discovered, rendered, cleaned, and semantically understood by AI crawlers, RAG ingestion pipelines, and autonomous browsing agents. Use this skill when the user asks to "audit my site for AI readiness", "check if my website is crawlable by LLMs/AI agents", "run a brand AI audit on <domain>", or asks for a structured report on AI-crawler compatibility. This skill coordinates website-observer, crawl-render-audit, content-cleaner, query-guided-discovery, failure-diagnostics, and freshness-corroboration, and is the only skill that emits the final audit JSON.
+allowed-tools: Bash, Read, WebFetch
+license: MIT
 ---
 
 # Brand AI Readiness Audit — Master Orchestrator
 
 > **Reference implementation:** `braiaudit.pipeline.run_audit()`
-> ([src/braiaudit/pipeline.py](src/braiaudit/pipeline.py)) implements this exact
+> ([src/braiaudit/pipeline.py](../../src/braiaudit/pipeline.py)) implements this exact
 > six-step sequence end to end and is runnable directly:
-> `braiaudit audit example.com` (see [README.md](README.md) Quickstart for
+> `braiaudit audit example.com` (see [README.md](../../README.md) Quickstart for
 > install). It runs fully without any browser installed, degrading
 > render-dependent checks to an honest `RENDER_COVERAGE_GAP` finding; install
 > the optional `[render]` extra for full JavaScript-rendering coverage. When
@@ -52,7 +54,7 @@ assembly, but owned by this skill for validation).
   "max_pages": 15,
   "options": {
     "respect_robots": true,
-    "max_render_pages": 5,
+    "max_render_pages": 3,
     "user_agent": "BrandAIReadinessAuditBot/1.0"
   }
 }
@@ -68,7 +70,20 @@ assembly, but owned by this skill for validation).
 ## Output Contract
 
 The orchestrator's final emission MUST validate against the audit report
-floor schema (produced via `freshness-corroboration`):
+floor schema (produced via `freshness-corroboration`). It has **two
+substantive halves**, and both are required:
+
+1. `findings` — the problems detected, each with machine-observed evidence,
+   a severity, and the `axis` (visibility / staleness / engagement /
+   identity) it belongs to.
+2. `suggested_actions` — what to change, prioritised. A *superset* of the
+   findings' remediations: entries with `derived_from: "proactive"` are
+   recommendations that apply even where no defect was detected, drawn from
+   the ontology's `opportunities`. An audit that only lists defects
+   under-serves a brand whose real problem is something it never built.
+
+`readiness` carries a 0-100 headline score with a per-axis breakdown and the
+scoring formula in words. Only findings affect it — advice never does.
 
 ```json
 {

@@ -83,14 +83,30 @@ def main() -> int:
     marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
     validate(marketplace, "marketplace")
 
-    declared_paths = {Path(REPO_ROOT / s["path"]).resolve() for s in marketplace["skills"]}
+    declared_paths = {
+        (REPO_ROOT / s["path"] / "SKILL.md").resolve() for s in marketplace["skills"]
+    }
 
-    root_skill = REPO_ROOT / "SKILL.md"
-    lint_skill_md(root_skill, marketplace.get("orchestrator"), errors)
-    if root_skill.resolve() not in declared_paths:
-        errors.append(f"{root_skill}: not listed in marketplace.json's skills[]")
+    # The submission rules require exactly one entrypoint — not zero, and not
+    # two. This is the check that would have caught the manifest being in the
+    # wrong shape entirely.
+    entrypoints = [s["id"] for s in marketplace["skills"] if s.get("entrypoint")]
+    if len(entrypoints) != 1:
+        errors.append(
+            f"marketplace.json: exactly one skill must set entrypoint:true, found "
+            f"{len(entrypoints)}: {entrypoints}"
+        )
 
-    on_disk_skill_mds = {root_skill.resolve()}
+    for skill in marketplace["skills"]:
+        if not (REPO_ROOT / skill["path"]).is_dir():
+            errors.append(f"marketplace.json: {skill['path']!r} is not a skill folder on disk")
+        if skill["path"] != f"skills/{skill['id']}":
+            errors.append(
+                f"marketplace.json: skill {skill['id']!r} path {skill['path']!r} does not "
+                f"match its id"
+            )
+
+    on_disk_skill_mds = set()
     for skill_dir in sorted((REPO_ROOT / "skills").iterdir()):
         skill_md = skill_dir / "SKILL.md"
         if not skill_md.exists():
