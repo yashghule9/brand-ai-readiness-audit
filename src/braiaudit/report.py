@@ -20,6 +20,10 @@ from braiaudit.schemas import validate
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
+# Bumped when the report's top-level shape changes, so a consumer can tell
+# which contract it is reading rather than guessing from the keys present.
+SCHEMA_VERSION = "1.0"
+
 # compliance_and_access findings are policy statements, not statistical
 # patterns — a single confirmed hit is fully corroborated regardless of
 # how many pages were sampled (see SKILL.md step 2).
@@ -33,6 +37,8 @@ def assemble_report(
     pages_unreachable: list[str] | None = None,
     audited_at: str | None = None,
     skills_engaged: set[str] | None = None,
+    crawl_note: str = "",
+    seed_url: str = "",
 ) -> dict[str, Any]:
     """Assemble, corroborate, and validate the final audit report.
 
@@ -57,13 +63,17 @@ def assemble_report(
         evidence = _corroborate_evidence(
             fm.category, urls, occurrences, pages_crawled, pages_unreachable
         )
+        confidence = _confidence(fm.category, len(urls), pages_crawled)
         merged.append(
             {
                 "failure_mode": mode_name,
                 "category": fm.category,
+                "axis": fm.axis,
+                "kind": fm.kind,
                 "title": fm.audit_finding_title,
                 "severity": fm.severity,
                 "evidence": evidence,
+                "confidence": confidence,
                 "suggested_action": occurrences[0][1]["suggested_action"],
                 "_affected_urls": urls,
             }
@@ -77,6 +87,26 @@ def assemble_report(
         )
     )
 
+    # A limitation describes this audit, not the site: it belongs in its own
+    # section, out of the findings array and out of the score entirely.
+    limitations = [
+        {
+            "title": f["title"],
+            # Not the corroboration sentence used for defects: "1/1 exhibit
+            # this failure mode" reads as an accusation about the site, when
+            # the point is that we could not look.
+            "detail": (
+                f"Could not be verified on {len(f['_affected_urls'])} of "
+                f"{pages_crawled} page(s) crawled."
+            ),
+            "resolution": f["suggested_action"]["summary"],
+            "affected_urls": f["_affected_urls"],
+        }
+        for f in merged
+        if f["kind"] == "limitation"
+    ]
+    merged = [f for f in merged if f["kind"] != "limitation"]
+
     findings = []
     for idx, f in enumerate(merged, start=1):
         findings.append(
@@ -88,6 +118,8 @@ def assemble_report(
                 "suggested_action": f["suggested_action"],
                 "affected_urls": f["_affected_urls"],
                 "category": f["category"],
+                "axis": f["axis"],
+                "confidence": f["confidence"],
             }
         )
 
@@ -98,11 +130,33 @@ def assemble_report(
         "medium": sum(1 for f in findings if f["severity"] == "medium"),
     }
 
+    readiness = _score(findings)
+    opportunities = _opportunities(findings, ontology)
     report = {
+        "schema_version": SCHEMA_VERSION,
+        # `site` stays a plain domain string and `audited_at` stays top-level:
+        # both are required by the audit-report floor schema. Anything richer
+        # belongs in site_info rather than replacing them.
         "site": site,
         "audited_at": audited_at or _now_iso(),
-        "summary": summary,
+        "site_info": {
+            "domain": site,
+            "url": seed_url or f"https://{site}/",
+        },
+        "summary": {
+            **summary,
+            "readiness_score": readiness["score"],
+            "by_axis": readiness["by_axis"],
+            "score_formula": readiness["formula"],
+            "headline": _headline(site, findings, limitations, readiness, pages_crawled),
+            # The few things to do first. Nothing is hidden by this: it points
+            # into the full findings and opportunities arrays below.
+            "top_priorities": _top_priorities(findings, opportunities),
+        },
         "findings": findings,
+        "audit_limitations": limitations,
+        "opportunities": opportunities,
+        "meta": {},
     }
 
     # --- Meta-analysis stage: "are our conclusions about what's wrong with
@@ -114,14 +168,183 @@ def assemble_report(
     report["meta"] = {
         "coverage": coverage_mod.compute_coverage(skills_engaged or set(), ontology=ontology),
         "validation": meta_mod.validate_report(report),
+        "crawl": {
+            "pages_crawled": pages_crawled,
+            "pages_unreachable": pages_unreachable,
+            "stopped_early": bool(crawl_note),
+            # Empty unless a budget cut the crawl short — a partial crawl must
+            # never read as a complete one.
+            "note": crawl_note,
+        },
     }
 
     validate(report, "audit-report")
     return report
 
 
+# Score weights per finding severity. Deliberately blunt and published in
+# the report itself: a score nobody can recompute by hand is a black box,
+# and this one exists to make runs comparable over time, not to be precise.
+_SCORE_PENALTY = {"critical": 25, "high": 12, "medium": 5, "low": 2}
+_AXES = ("visibility", "staleness", "engagement", "identity")
+
+
+def _score(findings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Headline 0-100 readiness score plus a per-axis breakdown.
+
+    Only findings score — opportunities never do. A recommendation the site
+    has not failed is advice, and penalising a brand for advice would make
+    the score unreadable.
+    """
+
+    def score_for(subset: list[dict[str, Any]]) -> int:
+        return max(0, 100 - sum(_SCORE_PENALTY[f["severity"]] for f in subset))
+
+    return {
+        "score": score_for(findings),
+        "by_axis": {
+            axis: {
+                "score": score_for([f for f in findings if f["axis"] == axis]),
+                "findings": sum(1 for f in findings if f["axis"] == axis),
+            }
+            for axis in _AXES
+        },
+        "formula": (
+            "100 minus 25 per critical, 12 per high, 5 per medium and 2 per low "
+            "finding, floored at 0. Proactive suggestions never affect the score."
+        ),
+    }
+
+
+def _opportunities(findings: list[dict[str, Any]], ontology: Any) -> list[dict[str, Any]]:
+    """Proactive advice, kept strictly apart from verified findings.
+
+    These are not defects and carry no evidence: they apply whether or not
+    anything was found wrong, because an audit that only lists defects
+    under-serves a brand whose real problem is something it never built.
+    Each finding already carries its own fix in `suggested_action`, so
+    nothing here restates one — an opportunity whose ground a finding
+    already covers is dropped via `suppressed_by`.
+    """
+    actions: list[dict[str, Any]] = []
+    fired = {f["title"] for f in findings}
+    fired_modes = {
+        name
+        for name, fm in ontology.failure_modes.items()
+        if fm.audit_finding_title in fired
+    }
+    for opportunity in ontology.opportunities.values():
+        if opportunity.suppressed_by & fired_modes:
+            continue
+        actions.append(
+            {
+                "priority": opportunity.priority,
+                "axis": opportunity.axis,
+                "summary": opportunity.action,
+                "rationale": opportunity.rationale,
+            }
+        )
+
+    actions.sort(key=lambda a: (_SEVERITY_RANK[a["priority"]], a["axis"], a["summary"]))
+    for index, action in enumerate(actions, start=1):
+        action["id"] = f"O-{index:03d}"
+    return actions
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _headline(
+    site: str,
+    findings: list[dict[str, Any]],
+    limitations: list[dict[str, Any]],
+    readiness: dict[str, Any],
+    pages_crawled: int,
+) -> str:
+    """One sentence a non-expert can act on, stating what was actually
+    checked as well as what was found — a score with no sample size behind
+    it invites more confidence than the evidence supports."""
+    critical = sum(1 for f in findings if f["severity"] == "critical")
+    weakest = min(
+        readiness["by_axis"].items(),
+        key=lambda kv: (kv[1]["score"], kv[0]),
+    )
+
+    if not pages_crawled:
+        return (
+            f"No pages of {site} could be crawled, so no readiness assessment "
+            "was possible. See audit_limitations."
+        )
+    if not findings:
+        head = f"No issues were detected across {pages_crawled} page(s) of {site}."
+    else:
+        problem = f"{len(findings)} issue(s)"
+        if critical:
+            problem += f", {critical} of them critical,"
+        head = (
+            f"{problem} were found across {pages_crawled} page(s) of {site}; "
+            f"the weakest area is {weakest[0]} at {weakest[1]['score']}/100."
+        )
+    if limitations:
+        head += f" {len(limitations)} check(s) could not be completed."
+    return head
+
+
+def _top_priorities(
+    findings: list[dict[str, Any]], opportunities: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The three highest-impact items, findings before advice.
+
+    A pointer into the full arrays, never a replacement for them: a reader
+    who wants everything still has it, and a reader who wants a starting
+    point no longer has to rank a dozen entries themselves.
+    """
+    ranked = [
+        {
+            "ref": f["id"],
+            "priority": f["severity"],
+            "summary": f["title"],
+            "type": "finding",
+        }
+        for f in findings
+    ] + [
+        {
+            "ref": o["id"],
+            "priority": o["priority"],
+            "summary": o["summary"].split(".")[0].strip() + ".",
+            "type": "opportunity",
+        }
+        for o in opportunities
+    ]
+    # Verified findings before advice, regardless of authored priority.
+    # Opportunity priorities are hand-set in the ontology and are not
+    # calibrated against finding severities, so ranking on priority alone
+    # lets speculative advice crowd out an observed defect.
+    ranked.sort(key=lambda a: (a["type"] == "opportunity", _SEVERITY_RANK[a["priority"]]))
+    return ranked[:3]
+
+
+def _confidence(category: str, pages_hit: int, pages_crawled: int) -> str:
+    """How much weight this finding's sample supports.
+
+    Severity says how bad the problem is; confidence says how sure we are it
+    is real and site-wide. They are different questions, and collapsing them
+    into one number is how a single-page fluke ends up reading like a
+    site-wide defect.
+    """
+    if category == _NEVER_DOWNGRADED_CATEGORY:
+        # A robots rule or an anti-bot challenge is a policy fact observed
+        # directly, not a sample to generalise from.
+        return "high"
+    if not pages_crawled:
+        return "low"
+    ratio = pages_hit / pages_crawled
+    if ratio == 1.0 and pages_crawled >= 3:
+        return "high"
+    if ratio >= 0.5:
+        return "medium"
+    return "low"
 
 
 def _corroborate_evidence(
