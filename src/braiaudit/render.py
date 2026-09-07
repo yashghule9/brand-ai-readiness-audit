@@ -11,6 +11,7 @@ instead of crashing or silently skipping render-dependent checks.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from braiaudit.schemas import validate
@@ -30,12 +31,38 @@ _INTERACTION_SELECTORS = (
     "button:has-text('Show more')",
 )
 
+logger = logging.getLogger("braiaudit.render")
+
+# Launching a browser is the step most likely to fail on a machine that has
+# the Python package but an unusable browser install. Bounded so a bad
+# environment degrades to a coverage gap instead of hanging the audit.
+_LAUNCH_TIMEOUT_MS = 20000
+
 _MAX_SCROLL_STEPS = 20
 _MAX_INTERACTIONS = 10
 
 
 def is_available() -> bool:
+    """Whether the render backend is importable.
+
+    Not a promise that a browser will actually launch — binaries can be
+    missing or unusable even when the package imports cleanly. `render()`
+    therefore treats any launch failure as a coverage gap rather than
+    trusting this flag.
+    """
     return _PLAYWRIGHT_AVAILABLE
+
+
+def _unavailable(url: str, reason: str) -> dict[str, Any]:
+    logger.warning("render backend unavailable for %s: %s", url, reason)
+    result = {
+        "url": url,
+        "available": False,
+        "render_timed_out": False,
+        "signals": ["render_backend_unavailable"],
+    }
+    validate(result, "crawl-render-audit")
+    return result
 
 
 def render(
@@ -56,17 +83,40 @@ def render(
     trusting DOM metrics.
     """
     if not _PLAYWRIGHT_AVAILABLE:
-        result = {
-            "url": url,
-            "available": False,
-            "render_timed_out": False,
-            "signals": ["render_backend_unavailable"],
-        }
-        validate(result, "crawl-render-audit")
-        return result
+        return _unavailable(url, "playwright is not installed")
 
+    # Any browser-side failure — missing or broken binaries, a sandbox that
+    # forbids launching one, a driver that never comes up — degrades to the
+    # documented coverage gap. Rendering is an optional enhancement and is
+    # never allowed to take the whole audit down with it.
+    try:
+        return _render_with_browser(
+            url,
+            pre_render_text_length,
+            user_agent,
+            max_wait_ms,
+            drive_scroll,
+            drive_interactions,
+            traverse_shadow_dom,
+        )
+    except Exception as exc:  # noqa: BLE001 - degrade on anything the backend raises
+        return _unavailable(url, f"{type(exc).__name__}: {exc}")
+
+
+def _render_with_browser(
+    url: str,
+    pre_render_text_length: int | None,
+    user_agent: str,
+    max_wait_ms: int,
+    drive_scroll: bool,
+    drive_interactions: bool,
+    traverse_shadow_dom: bool,
+) -> dict[str, Any]:
+    """The real render pass. Exiting the sync_playwright context tears the
+    driver (and any browser it started) down, so a raise here cannot leak a
+    browser process — the caller turns it into a coverage gap."""
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(timeout=_LAUNCH_TIMEOUT_MS)
         page = browser.new_page(user_agent=user_agent)
         render_timed_out = False
         try:
@@ -88,8 +138,21 @@ def render(
         if traverse_shadow_dom:
             shadow_components, shadow_text = _traverse_shadow_dom(page)
 
+        # Same-origin only. The field is called *internal* links and feeds
+        # the crawl frontier, so leaking third-party hrefs here sends the
+        # audit off to crawl someone else's site.
         discovered_links = page.evaluate(
-            "Array.from(document.querySelectorAll('a[href]')).map(a => a.href)"
+            """
+            () => Array.from(document.querySelectorAll('a[href]'))
+              .map(a => a.href)
+              .filter(href => {
+                try {
+                  const u = new URL(href, location.href);
+                  return u.host === location.host
+                    && (u.protocol === 'http:' || u.protocol === 'https:');
+                } catch (e) { return false; }
+              })
+            """
         )
         nav_trap = page.evaluate(
             """
