@@ -16,6 +16,8 @@ from braiaudit.schemas import is_valid
 def _audit(args: argparse.Namespace) -> int:
     options = AuditOptions(
         max_pages=args.max_pages,
+        max_depth=args.max_depth,
+        max_runtime_seconds=args.max_runtime,
         max_render_pages=0 if args.no_render else args.max_render_pages,
         target_queries=args.query or [],
     )
@@ -63,10 +65,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicit seed URL (repeatable). Defaults to https://<site>/",
     )
     audit_p.add_argument(
-        "--query", action="append", help="A target query to test discoverability of (repeatable)."
+        "--query",
+        action="append",
+        help=(
+            "A target query to test discoverability of (repeatable). Defaults to a "
+            "generic customer-question set; pass your own to test brand-specific ones."
+        ),
     )
     audit_p.add_argument("--max-pages", type=int, default=15)
-    audit_p.add_argument("--max-render-pages", type=int, default=5)
+    audit_p.add_argument(
+        "--max-depth",
+        type=int,
+        default=2,
+        help="Link depth to crawl from the seed URLs (default 2: seeds, main nav, detail pages).",
+    )
+    audit_p.add_argument(
+        "--max-render-pages",
+        type=int,
+        default=3,
+        help=(
+            "Pages to render with a headless browser (default 3). Rendering costs "
+            "~20-25s per page and dominates runtime."
+        ),
+    )
+    audit_p.add_argument(
+        "--max-runtime",
+        type=float,
+        default=240.0,
+        help="Wall-clock ceiling in seconds for the whole crawl (default 240).",
+    )
     audit_p.add_argument(
         "--no-render", action="store_true", help="Skip headless rendering entirely."
     )
