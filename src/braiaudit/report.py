@@ -45,6 +45,10 @@ def assemble_report(
     seed_url: str = "",
     pages_rendered: int = 0,
     render_triggered: bool = False,
+    brand_name_candidates: list[str] | None = None,
+    declared_brand_name: str = "",
+    organization_legal_name: str = "",
+    organization_same_as: list[str] | None = None,
 ) -> dict[str, Any]:
     """Assemble, corroborate, and validate the final audit report.
 
@@ -157,6 +161,14 @@ def assemble_report(
         "site_info": {
             "domain": site,
             "url": seed_url or f"https://{site}/",
+            # What the site declares about itself in its own markup, read by
+            # website-observer. Present so a consumer can see the verified
+            # surface; absent/empty means the pipeline found no such
+            # declaration, never that one was inferred.
+            "brand_name_candidates": brand_name_candidates or [],
+            "declared_brand_name": declared_brand_name,
+            "organization_legal_name": organization_legal_name,
+            "organization_same_as": organization_same_as or [],
         },
         # Written by the qualitative (unscored) path only. Empty here means
         # no single-sample observation was attached to this run.

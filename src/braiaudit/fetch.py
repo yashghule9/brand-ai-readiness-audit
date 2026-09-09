@@ -136,6 +136,40 @@ def site_label(target: str) -> str:
     return parsed.netloc or target
 
 
+# Public suffixes with more than one label, where the last two labels are the
+# *suffix* and carry no registrable name. Without this, every `*.gov.in`
+# reduces to "gov.in" and two unrelated organisations (isro.gov.in and
+# nasa.gov.in) compare as the same domain — a false equivalence that silently
+# masks a real mismatch. Not a full public-suffix list, and deliberately not a
+# new dependency: this covers the suffixes that appear in this project's own
+# corpus plus the common English-language ones.
+_MULTIPART_SUFFIXES = frozenset(
+    {
+        "gov.in", "co.in", "ac.in", "net.in", "org.in", "edu.in", "res.in", "nic.in",
+        "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "ltd.uk",
+        "com.au", "net.au", "org.au", "edu.au", "gov.au",
+        "com.br", "com.cn", "com.mx", "com.sg", "com.my", "com.tr", "com.tw",
+        "co.jp", "co.kr", "co.nz", "co.za", "com.hk", "com.ph",
+    }
+)
+
+
+def registrable_domain(host: str) -> str:
+    """The registrable domain: one label above the public suffix.
+
+    `www.example.com` and `example.com` both reduce to `example.com`, while
+    `isro.gov.in` and `nasa.gov.in` stay distinct rather than both collapsing
+    to `gov.in`. Single source of truth for every caller that needs to decide
+    whether two hostnames belong to the same site.
+    """
+    parts = host.lower().strip(".").split(".")
+    if len(parts) < 2:
+        return host.lower()
+    if len(parts) >= 3 and ".".join(parts[-2:]) in _MULTIPART_SUFFIXES:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:])
+
+
 def _origin(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}"
@@ -308,12 +342,31 @@ def analyse_structured_data(blocks: list[dict], visible_text: str) -> dict[str, 
             if isinstance(value, str) and len(value) > 3 and value.lower() not in haystack:
                 desynced.append(f"{prop}={value!r}")
 
+    # legalName and sameAs are already read above; retaining the values
+    # rather than only the booleans exposes facts the pipeline had observed
+    # and was discarding. No signal derives from these — they exist so a
+    # consumer can see what the site declares about itself.
+    legal_name = ""
+    for block in organizations:
+        candidate = block.get("legalName")
+        if isinstance(candidate, str) and candidate.strip():
+            legal_name = candidate.strip()
+            break
+
+    same_as_urls: list[str] = []
+    for block in organizations:
+        raw = block.get("sameAs")
+        values = raw if isinstance(raw, list) else [raw]
+        same_as_urls.extend(v.strip() for v in values if isinstance(v, str) and v.strip())
+
     return {
         "schema_types": sorted(types),
         "has_freshness_date": has_date,
         "has_organization": bool(organizations),
         "has_same_as": bool(same_as),
         "desynced_properties": desynced,
+        "legal_name": legal_name,
+        "same_as": sorted(set(same_as_urls)),
     }
 
 
@@ -466,6 +519,9 @@ def observe(
         "render_blocking_script_count": 0,
         "brand_name_variants": "",
         "brand_name_candidates": [],
+        "declared_brand_name": "",
+        "organization_legal_name": "",
+        "organization_same_as": [],
         "ai_crawler_access": {},
         "blocked_ai_crawlers": "",
         "anti_bot_evidence": "",
@@ -646,6 +702,8 @@ def observe(
         signals.append("data_src_attribute_present")
     schema = analyse_structured_data(_json_ld_blocks(soup), text)
     result["schema_types"] = schema["schema_types"]
+    result["organization_legal_name"] = schema["legal_name"]
+    result["organization_same_as"] = schema["same_as"]
 
     # --- staleness / engagement / identity ------------------------------
     # Wrapped as one unit: these all parse markup that varies wildly between
@@ -725,6 +783,15 @@ def observe(
         result["brand_name_candidates"] = [
             names[k] for k in ("Organization.name", "og:site_name", "title") if names.get(k)
         ]
+        # Only Organization.name and og:site_name are deliberate declarations
+        # of what the brand is called. A <title> is a page title that often
+        # merely contains the brand ("Zerodha: Online brokerage platform for
+        # stock trading & investing"), so it is kept out of this field — a
+        # consumer treating a title as a brand name would ask worse questions
+        # than one falling back to the domain label.
+        result["declared_brand_name"] = (
+            names.get("Organization.name") or names.get("og:site_name") or ""
+        )
         distinct = {v.lower().strip() for v in names.values() if v}
         if len(names) >= 2 and len(distinct) > 1:
             # Only report when no stated name contains another: "Acme" inside

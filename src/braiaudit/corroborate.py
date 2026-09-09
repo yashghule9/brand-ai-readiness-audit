@@ -36,7 +36,7 @@ from typing import Any
 import requests
 from bs4 import BeautifulSoup
 
-from braiaudit.fetch import DEFAULT_USER_AGENT, fetch_robots
+from braiaudit.fetch import DEFAULT_USER_AGENT, fetch_robots, registrable_domain
 
 logger = logging.getLogger("braiaudit.corroborate")
 
@@ -190,10 +190,14 @@ def _wikidata_official_sites(html: str) -> list[str] | None:
 
 
 def _registrable(host: str) -> str:
-    """Crude last-two-labels comparison, enough to match example.com against
-    www.example.com without pulling in a public-suffix dependency."""
-    parts = host.lower().split(".")
-    return ".".join(parts[-2:]) if len(parts) >= 2 else host.lower()
+    """Delegates to the shared implementation in `fetch`.
+
+    Previously a naive last-two-labels comparison, which reduced every
+    `*.gov.in` to `gov.in` and made two unrelated organisations compare
+    equal — so an entity record pointing at a different `.gov.in` site read
+    as reciprocal when it was not.
+    """
+    return registrable_domain(host)
 
 
 def corroborate(

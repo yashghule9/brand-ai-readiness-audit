@@ -283,6 +283,28 @@
         },
         "url": {
           "type": "string"
+        },
+        "brand_name_candidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Brand names the site declares in its own markup (Organization.name, og:site_name, <title>), most authoritative first. Machine-read from the site; not an independent verification of the entity's real-world identity."
+        },
+        "organization_legal_name": {
+          "type": "string",
+          "description": "legalName from the site's own Organization JSON-LD. Empty when the site declares none."
+        },
+        "organization_same_as": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "sameAs URLs from the site's own Organization JSON-LD."
+        },
+        "declared_brand_name": {
+          "type": "string",
+          "description": "The brand name the site deliberately declares (Organization.name or og:site_name). Excludes page <title>, which contains rather than states a brand name. Empty when the site declares neither."
         }
       }
     },

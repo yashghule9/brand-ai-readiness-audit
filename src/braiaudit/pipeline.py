@@ -128,6 +128,12 @@ def run_audit(
     content_hash_urls: dict[str, list[str]] = {}
     canonical_missing_urls: set[str] = set()
     brand_names: list[str] = []
+    # Facts the observer already reads off the site's own structured data.
+    # First non-empty value across the crawl wins; these are what the site
+    # declares about itself, not an independent verification of the entity.
+    declared_brand: str = ""
+    org_legal_name: str = ""
+    org_same_as: list[str] = []
 
     # Which "sources" (see braiaudit.coverage.SIGNAL_SOURCES) actually ran
     # this audit — feeds the final report's meta.coverage block so a gap
@@ -200,6 +206,13 @@ def run_audit(
         for name in observed.get("brand_name_candidates") or []:
             if name not in brand_names:
                 brand_names.append(name)
+        if not declared_brand:
+            declared_brand = observed.get("declared_brand_name") or ""
+        if not org_legal_name:
+            org_legal_name = observed.get("organization_legal_name") or ""
+        for link in observed.get("organization_same_as") or []:
+            if link not in org_same_as:
+                org_same_as.append(link)
         sitemap_urls = observed.get("sitemap_urls") or sitemap_urls
         if not observed.get("canonical_tag_present"):
             canonical_missing_urls.add(url)
@@ -348,6 +361,10 @@ def run_audit(
         pages_rendered=pages_rendered,
         render_triggered=render_triggered,
         seed_url=seed_urls[0] if seed_urls else '',
+        brand_name_candidates=brand_names,
+        declared_brand_name=declared_brand,
+        organization_legal_name=org_legal_name,
+        organization_same_as=org_same_as,
     )
 
 

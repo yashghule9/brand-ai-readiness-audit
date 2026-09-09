@@ -235,3 +235,62 @@ def test_first_seen_reads_the_wayback_redirect_target_not_an_api():
 
     assert result["site_first_seen"] == "2024-03-15"
     assert result["parse_status"] == "ok"
+
+
+def test_registrable_domain_does_not_collapse_multipart_public_suffixes():
+    """The Phase 2 bug this fixes: a naive last-two-labels reduction turned
+    every `*.gov.in` into `gov.in`, so an entity record pointing at an
+    unrelated government site compared as reciprocal with the audited one.
+    Two different organisations under the same multi-part suffix must stay
+    distinct."""
+    from braiaudit.fetch import registrable_domain
+
+    assert registrable_domain("isro.gov.in") != registrable_domain("nasa.gov.in")
+    assert registrable_domain("isro.gov.in") == "isro.gov.in"
+    assert registrable_domain("nasa.gov.in") == "nasa.gov.in"
+    assert registrable_domain("www.isro.gov.in") == "isro.gov.in"
+
+    # Other Indian suffixes named in the corrective pass.
+    assert registrable_domain("acme.co.in") != registrable_domain("other.co.in")
+    assert registrable_domain("x.org.in") == "x.org.in"
+    assert registrable_domain("y.ac.in") == "y.ac.in"
+    assert registrable_domain("z.nic.in") == "z.nic.in"
+
+    # Ordinary domains keep collapsing www correctly.
+    assert registrable_domain("www.example.com") == "example.com"
+    assert registrable_domain("example.com") == "example.com"
+    assert registrable_domain("example.org") == "example.org"
+    assert registrable_domain("example.com") != registrable_domain("example.org")
+
+    # And a genuine multi-part case outside India.
+    assert registrable_domain("shop.example.co.uk") == "example.co.uk"
+    assert registrable_domain("example.co.uk") != registrable_domain("other.co.uk")
+
+
+@responses.activate
+def test_entity_reciprocity_is_not_faked_by_a_shared_multipart_suffix():
+    """End-to-end consequence of the fix: an entity record whose official
+    site is a *different* .gov.in domain must be reported as
+    not-reciprocal, where the old comparison called it a match."""
+    _allow_robots()
+    responses.add(
+        responses.GET,
+        "https://en.wikipedia.org/wiki/Isro",
+        body=_article_linking("Q100"),
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        "https://www.wikidata.org/wiki/Q100",
+        body=(
+            '<html><body><h2 id="claims">Statements</h2>'
+            '<div id="P856"><a href="https://nasa.gov.in/">site</a></div>'
+            "</body></html>"
+        ),
+        status=200,
+    )
+
+    result = corroborate("isro.gov.in", ["Isro"], session=requests.Session())
+
+    assert result["entity_reciprocal"] is False
+    assert result["signals"] == ["entity_record_not_reciprocal"]

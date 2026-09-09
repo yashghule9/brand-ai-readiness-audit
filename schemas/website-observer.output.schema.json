@@ -175,6 +175,21 @@
     "http_error_evidence": {
       "type": "string",
       "description": "What the error response looked like when a 4xx/5xx returned no usable body and no anti-bot fingerprint matched. Empty when the page was retrieved or a more specific check already explains the failure."
+    },
+    "organization_legal_name": {
+      "type": "string",
+      "description": "legalName declared by the page's own Organization JSON-LD. Empty when absent. This is what the site declares about itself, machine-read, not an external verification of the entity."
+    },
+    "organization_same_as": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "sameAs URLs declared by the page's own Organization JSON-LD."
+    },
+    "declared_brand_name": {
+      "type": "string",
+      "description": "The brand name the site deliberately declares, from Organization.name or og:site_name only. Page <title> is excluded because it typically contains rather than states the brand. Empty when the site declares neither."
     }
   }
 }
