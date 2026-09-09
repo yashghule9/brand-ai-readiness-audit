@@ -43,6 +43,8 @@ def assemble_report(
     skills_engaged: set[str] | None = None,
     crawl_note: str = "",
     seed_url: str = "",
+    pages_rendered: int = 0,
+    render_triggered: bool = False,
 ) -> dict[str, Any]:
     """Assemble, corroborate, and validate the final audit report.
 
@@ -191,6 +193,11 @@ def assemble_report(
             # Empty unless a budget cut the crawl short — a partial crawl must
             # never read as a complete one.
             "note": crawl_note,
+            # Exact counts, not inferred: a page counts as rendered only when
+            # the backend returned available:true, so a launch failure that
+            # degraded to a coverage gap is never counted as a success.
+            "render_triggered": render_triggered,
+            "pages_rendered": pages_rendered,
         },
     }
 

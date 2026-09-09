@@ -41,7 +41,7 @@
 # runtime — but a signal it lists must actually be emitted by some producer
 # or it will simply never fire.
 
-ontology_version: "2.0"
+ontology_version: "2.3"
 
 categories:
   rendering_and_execution:
@@ -861,6 +861,121 @@ failure_modes:
     recovery_strategy: entity_disambiguation
     recommended_tool: none
     audit_finding_title: "No Machine-Readable Contact Or Location Details"
+  # ---------------------------------------------------------------------
+  # 8. Off-site corroboration
+  # ---------------------------------------------------------------------
+
+  ENTITY_RECORD_ABSENT:
+    category: semantic_deficit
+    axis: identity
+    severity: medium
+    match_mode: all
+    signals: [entity_record_absent]
+    evidence_metric: entity_evidence
+    description: >
+      No public entity record was found for this brand under any of the name
+      variants tried. Entity resolution works by corroboration: when a name
+      is shared with a larger entity, a retrieval pipeline resolves it to
+      whichever candidate the wider web supports better, and a brand with no
+      independent record loses that contest without being at fault on its
+      own pages. Whether this reflects a small regional brand or a notability
+      lag is a judgement about prominence that no automated check can settle,
+      so this finding reports the absence and leaves the reason to a reader.
+    remediation: >
+      Establish an independent, structured record of the brand and link it
+      both ways: claim a Wikidata entity with the official domain as its
+      website, and add the matching sameAs links to the Organization schema
+      on the site. Keep the brand descriptor identical across every directory
+      and listing so the entity signature is consistent wherever it is
+      encountered. Notability rules govern encyclopaedic articles, but a
+      structured entity record does not require one.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "No Public Entity Record Corroborates This Brand"
+
+  ENTITY_RECORD_NOT_RECIPROCAL:
+    category: semantic_deficit
+    axis: identity
+    severity: high
+    match_mode: all
+    signals: [entity_record_not_reciprocal]
+    evidence_metric: entity_evidence
+    description: >
+      A public entity record exists under this brand's name, but it does not
+      list this domain as its official site. This is the entity-collision
+      case made concrete: a query about the name has a well-corroborated
+      answer that is not this brand, so the assistant can process the name
+      correctly and still never surface the site. It also covers a record
+      that is genuinely about this brand but has drifted — an old domain, or
+      a claim never updated after a move.
+    remediation: >
+      Determine whether the record describes this brand or a different one.
+      If it is this brand, correct its official-website property to the
+      current domain. If it is a different entity sharing the name, create a
+      distinct record for this brand with disambiguating context — industry,
+      founding date, registered address — and link it from the site's
+      Organization schema via sameAs so the two are separable.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Public Entity Record Does Not Point Back To This Site"
+  HTTP_ERROR_STATUS_BLOCKED:
+    category: compliance_and_access
+    axis: visibility
+    severity: critical
+    match_mode: all
+    signals: [http_error_status_blocked]
+    evidence_metric: http_error_evidence
+    description: >
+      The page returned an error status (4xx or 5xx) with no retrievable
+      content, and no other check explains why: it is not a rate limit, and
+      no anti-bot fingerprint matched. This audit cannot determine the exact
+      cause — access control, geographic or automated-traffic blocking, a
+      misconfigured origin, or a genuine outage all look identical from the
+      outside — but the practical effect is the same regardless of cause: an
+      AI crawler using a comparable generic user-agent gets nothing from this
+      page either. Reported as critical because it is functional invisibility,
+      not a defect in what content exists.
+    remediation: >
+      Fetch the URL with a plain HTTP client and a generic user-agent, the way
+      this check did, and read what actually comes back. If it is a CDN or
+      WAF rule blocking unrecognised clients, confirm which automated
+      user-agents are allowlisted. If it is a genuine server error, the fix is
+      unrelated to AI readiness — but until it returns real content, no
+      crawler using a similar profile can read this page either.
+    recovery_strategy: manual_investigation
+    recommended_tool: none
+    audit_finding_title: "Page Returns An Error Status With No Retrievable Content"
+  HTTP_ERROR_STATUS_UNCONFIRMED:
+    category: compliance_and_access
+    axis: visibility
+    kind: limitation
+    severity: medium
+    match_mode: all
+    signals: [http_error_status_unconfirmed]
+    evidence_metric: http_error_evidence
+    description: >
+      The page returned HTTP 403 or 503 with a real, HTML-parseable body,
+      but no anti-bot fingerprint this audit knows matched it. This is
+      genuinely ambiguous: it could be a challenge or block page worded in a
+      way not on the fingerprint list, or a legitimate response that simply
+      uses one of these statuses (a paywall teaser, an age-gate, a regional
+      notice) while still carrying real content. Nothing observable from
+      here distinguishes the two reliably, and guessing wrong in either
+      direction has a real cost — so this is reported as an explicit
+      inability to confirm, not as a finding about the site. The body was
+      not analysed as the site's real content, and this never counts
+      against the readiness score.
+    remediation: >
+      No site change is implied by this finding on its own. Load the URL
+      manually with a plain HTTP client and a generic user-agent to see what
+      was actually returned. If it is a block or challenge page, that is the
+      same access problem HTTP_ERROR_STATUS_BLOCKED describes and the same
+      remediation applies. If it is genuine content, this audit under-counted
+      that page — a widened or added fingerprint would let it be confirmed
+      as blocked-or-not on a future run rather than left undetermined.
+    recovery_strategy: manual_investigation
+    recommended_tool: none
+    audit_finding_title: "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine"
 
 # =====================================================================
 # Proactive opportunities

@@ -17,7 +17,18 @@ from typing import Any
 
 import requests
 
-from braiaudit import clean, discovery, fetch, ontology, relevance, render, report
+from braiaudit import (
+    clean,
+    discovery,
+    fetch,
+    ontology,
+    relevance,
+    render,
+    report,
+)
+from braiaudit import (
+    corroborate as corroborate_mod,
+)
 
 logger = logging.getLogger("braiaudit.pipeline")
 
@@ -27,7 +38,13 @@ _RENDER_TRIGGER_SIGNALS = {"low_raw_text", "high_script_count", "root_container_
 
 # Observer signals that mean "stop the pipeline for this URL right here" —
 # mirrors the entrypoint skill's robots/rate-limit/anti-bot short-circuit.
-_HALT_SIGNALS = {"robots_txt_disallow", "http_429_rate_limit", "anti_bot_challenge_detected"}
+_HALT_SIGNALS = {
+    "robots_txt_disallow",
+    "http_429_rate_limit",
+    "anti_bot_challenge_detected",
+    "http_error_status_blocked",
+    "http_error_status_unconfirmed",
+}
 
 # Used when the caller supplies no target queries. Without any, answer-
 # completeness scoring never runs and DISTRIBUTED_INFORMATION_FRAGMENTATION
@@ -65,6 +82,10 @@ class AuditOptions:
     # crawl stops cleanly at this point and the report says it did, rather
     # than silently reporting a partial site as if it were the whole one.
     max_runtime_seconds: float = 240.0
+    # Off-site corroboration reads third-party pages (Wikipedia, Wikidata,
+    # the Wayback Machine) to answer the entity-resolution question that
+    # no on-site check can. Runs once per audit, not per page.
+    corroborate: bool = True
     user_agent: str = fetch.DEFAULT_USER_AGENT
     target_queries: list[str] = field(default_factory=list)
 
@@ -97,10 +118,16 @@ def run_audit(
     findings_by_url: dict[str, list[dict[str, Any]]] = {}
     pages_unreachable: list[str] = []
     render_budget_remaining = options.max_render_pages
+    # Exact, not inferred: a page counts as rendered only when the
+    # backend actually returned available:true, so a launch failure that
+    # degrades to a coverage gap is never counted as a successful render.
+    pages_rendered = 0
+    render_triggered = False
     incoming_links_map: dict[str, int] = {}
     sitemap_urls: list[str] = []
     content_hash_urls: dict[str, list[str]] = {}
     canonical_missing_urls: set[str] = set()
+    brand_names: list[str] = []
 
     # Which "sources" (see braiaudit.coverage.SIGNAL_SOURCES) actually ran
     # this audit — feeds the final report's meta.coverage block so a gap
@@ -150,6 +177,18 @@ def run_audit(
         engaged.add("website-observer")
         page_findings.extend(_diagnose(url, observed))
 
+        if depth == 0 and observed.get("final_url"):
+            # A seed URL commonly redirects apex<->www (zoho.com ->
+            # www.zoho.com is typical, and is exactly what typing the bare
+            # domain into a browser does). Every link discovered on that
+            # page lives on the resolved host, so without this the frontier
+            # guard rejected the site's own link graph in full and silently
+            # degraded the crawl to one page. Scoped to depth 0 only: a
+            # redirect met later, mid-crawl, never expands scope — that
+            # boundary is what stops the crawler wandering onto a third
+            # party through an ordinary link.
+            allowed_hosts.add(fetch.site_label(observed["final_url"]))
+
         if observed.get("http_status") is None:
             pages_unreachable.append(url)
             findings_by_url[url] = page_findings
@@ -158,6 +197,9 @@ def run_audit(
             findings_by_url[url] = page_findings
             continue
 
+        for name in observed.get("brand_name_candidates") or []:
+            if name not in brand_names:
+                brand_names.append(name)
         sitemap_urls = observed.get("sitemap_urls") or sitemap_urls
         if not observed.get("canonical_tag_present"):
             canonical_missing_urls.add(url)
@@ -167,6 +209,8 @@ def run_audit(
         # --- 2. Render (conditional) -------------------------------------
         needs_render = bool(_RENDER_TRIGGER_SIGNALS & set(observed["signals"]))
         rendered = None
+        if needs_render:
+            render_triggered = True
         if needs_render and render_budget_remaining > 0:
             rendered = render.render(url, pre_render_text_length=pre_render_len)
             render_budget_remaining -= 1
@@ -174,6 +218,7 @@ def run_audit(
             if rendered.get("available"):
                 engaged.add("crawl-render-audit")
                 best_html = rendered.get("rendered_html") or best_html
+                pages_rendered += 1
         elif needs_render:
             page_findings.extend(
                 _diagnose(
@@ -268,6 +313,30 @@ def run_audit(
                 )
             )
 
+    # --- Site-level pass: off-site corroboration -----------------------
+    # One check per audit, not per page: whether a public record of this
+    # brand exists is a property of the brand, not of any single URL.
+    if options.corroborate and pages_crawled_any(findings_by_url, pages_unreachable):
+        engaged.add("offsite-corroboration")
+        bundle = corroborate_mod.corroborate(
+            site, brand_names, session=session, user_agent=options.user_agent
+        )
+        # Site age is weak, unscored context — not a diff over snapshot
+        # history, which is materially bigger scope than a single earliest-
+        # snapshot lookup and was not attempted here. Attached only when the
+        # entity check itself succeeded, so it never inflates an unknown
+        # parse into something that looks like more evidence than it is.
+        if bundle["parse_status"] == "ok":
+            seen = corroborate_mod.first_seen(
+                site, session=session, user_agent=options.user_agent
+            )
+            if seen["site_first_seen"]:
+                bundle["entity_evidence"] += (
+                    f" (site first archived {seen['site_first_seen']})"
+                )
+        seed = seed_urls[0] if seed_urls else f"https://{site}/"
+        findings_by_url.setdefault(seed, []).extend(_diagnose(seed, bundle))
+
     pages_crawled = len({u for u in findings_by_url if u not in pages_unreachable})
     return report.assemble_report(
         site=site,
@@ -276,8 +345,19 @@ def run_audit(
         pages_unreachable=pages_unreachable,
         skills_engaged=engaged,
         crawl_note=stopped_early,
+        pages_rendered=pages_rendered,
+        render_triggered=render_triggered,
         seed_url=seed_urls[0] if seed_urls else '',
     )
+
+
+def pages_crawled_any(
+    findings_by_url: dict[str, list[dict[str, Any]]], unreachable: list[str]
+) -> bool:
+    """Whether anything was actually reached. A crawl that reached nothing
+    has no brand to corroborate, and spending third-party fetches on it
+    would be noise."""
+    return bool({u for u in findings_by_url if u not in unreachable})
 
 
 def _crawl_order(links: list[str], target_queries: list[str]) -> list[str]:

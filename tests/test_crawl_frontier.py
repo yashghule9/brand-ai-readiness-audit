@@ -229,11 +229,18 @@ def test_robots_and_sitemap_are_fetched_once_per_origin_not_once_per_page():
         )
 
     report = run_audit(
-        "example.com", options=AuditOptions(max_pages=5, max_render_pages=0, max_depth=2)
+        "example.com",
+        options=AuditOptions(
+            max_pages=5, max_render_pages=0, max_depth=2, corroborate=False
+        ),
     )
 
     assert report["meta"]["crawl"]["pages_crawled"] == 3
-    robots_calls = [c for c in responses.calls if c.request.url.endswith("/robots.txt")]
+    # Scoped to the audited host: off-site corroboration legitimately reads
+    # robots.txt from the third parties it consults.
+    robots_calls = [
+        c for c in responses.calls if c.request.url == "https://example.com/robots.txt"
+    ]
     assert len(robots_calls) == 1, f"robots.txt fetched {len(robots_calls)} times"
 
 
@@ -286,3 +293,174 @@ def test_rendered_links_are_canonicalised_before_entering_the_frontier(monkeypat
     )
 
     assert report["meta"]["crawl"]["pages_crawled"] == 2, "one page audited under three spellings"
+
+
+@__import__("responses").activate
+def test_error_status_with_no_body_is_a_finding_not_a_false_clean():
+    """A 403 with zero bytes and no matching anti-bot fingerprint used to
+    produce zero signals and count as a successfully crawled page — a site
+    scored 100 while we had actually retrieved nothing at all. Found live
+    against a real site returning a bare 403."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="",
+        status=403,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    titles = {f["title"] for f in report["findings"]}
+    assert "Page Returns An Error Status With No Retrievable Content" in titles
+    assert report["summary"]["critical"] >= 1
+    # And it must not silently be counted as a clean, fully-audited page.
+    assert report["summary"]["readiness_score"] < 100
+
+
+@__import__("responses").activate
+def test_seed_redirect_expands_allowed_hosts_but_a_later_redirect_does_not():
+    """A bare-domain seed that 301s to www is the ordinary case (zoho.com ->
+    www.zoho.com is what typing the domain into a browser does) — every link
+    on that page lives on the resolved host, and rejecting them silently
+    degraded a real audit to a single page. Scoped to the seed only: a
+    redirect met deeper in the crawl must never expand scope, or a page could
+    walk the crawler onto a third party through an ordinary link."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    home = (
+        '<html><body><main><h1>Home</h1><a href="/pricing">Pricing</a>'
+        "<p>" + "Example sells things. " * 30 + "</p></main></body></html>"
+    )
+    pricing = (
+        '<html><body><main><h1>Pricing</h1>'
+        '<a href="https://evil.example.org/">redirected elsewhere</a>'
+        "<p>" + "Pricing details. " * 30 + "</p></main></body></html>"
+    )
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        status=301,
+        headers={"Location": "https://www.example.com/"},
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/", body=home, status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/pricing", body=pricing, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=10, max_render_pages=0, max_depth=2, corroborate=False),
+    )
+
+    crawled = {u for f in report["findings"] for u in f["affected_urls"]}
+    assert "https://www.example.com/pricing" in crawled, "seed redirect did not expand scope"
+    assert not any("evil.example.org" in u for u in crawled), (
+        "a redirect encountered mid-crawl must never expand allowed hosts"
+    )
+
+
+@__import__("responses").activate
+def test_403_with_unrecognised_body_is_unconfirmed_not_analysed_as_content():
+    """Infosys/Meesho-style case: a 403 with a real, non-empty HTML body and
+    no matching anti-bot fingerprint. Analysing that body as the site's real
+    content fabricates content-quality findings about a page never actually
+    seen — this must land as an explicit "could not confirm" limitation
+    instead, never as an ordinary defect, and never with content signals
+    computed from the block page's own thin text."""
+    import responses
+
+    from braiaudit.fetch import observe
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><head><title>Forbidden</title></head>"
+        "<body>Access to this resource is denied.</body></html>",
+        status=403,
+        content_type="text/html",
+    )
+
+    result = observe("https://example.com/")
+
+    assert result["signals"] == ["http_error_status_unconfirmed"]
+    assert result["parse_status"] == "ok"
+    assert result.get("raw_html") is None, "block page body must not be analysed as real content"
+    assert "confirm" in result["http_error_evidence"].lower()
+
+
+@__import__("responses").activate
+def test_403_unconfirmed_is_an_unscored_limitation_not_a_defect():
+    """The critical requirement: unknown must not become an ordinary
+    website defect. It must not count against the readiness score and must
+    not appear in `findings` at all."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><body>Access denied for this request.</body></html>",
+        status=403,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    titles = {f["title"] for f in report["findings"]}
+    assert "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine" not in titles
+    limitation_titles = {lim["title"] for lim in report["audit_limitations"]}
+    assert "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine" in limitation_titles
+    assert report["summary"]["readiness_score"] == 100
+
+
+@__import__("responses").activate
+def test_a_genuine_404_with_real_content_is_still_processed_normally():
+    """The conservative scope matters: only 403/503 (the same pair the
+    anti-bot fingerprint check already treats specially) are diverted to the
+    "unconfirmed" limitation. An ordinary 404 with a real body — the
+    overwhelmingly common case when a crawled link is simply dead — must
+    keep going through normal content analysis exactly as before, so a
+    legitimate error response is never swept into "possibly blocked"."""
+    import responses
+
+    from braiaudit.fetch import observe
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/gone",
+        body="<html><head><title>Not Found</title></head>"
+        "<body><h1>Page not found</h1></body></html>",
+        status=404,
+        content_type="text/html",
+    )
+
+    result = observe("https://example.com/gone")
+
+    assert "http_error_status_unconfirmed" not in result["signals"]
+    assert "http_error_status_blocked" not in result["signals"]
+    assert result.get("raw_html") is not None
+    assert result["soft_404_suspected"] is False  # status isn't 200, so N/A

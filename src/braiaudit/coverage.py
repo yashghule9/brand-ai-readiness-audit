@@ -50,6 +50,8 @@ SIGNAL_SOURCES: dict[str, str] = {
     "ai_crawler_robots_disallow": "website-observer",
     "http_429_rate_limit": "website-observer",
     "anti_bot_challenge_detected": "website-observer",
+    "http_error_status_blocked": "website-observer",
+    "http_error_status_unconfirmed": "website-observer",
     "freshness_markers_absent": "website-observer",
     "entity_sameas_missing": "website-observer",
     "schema_visual_desync": "website-observer",
@@ -70,6 +72,8 @@ SIGNAL_SOURCES: dict[str, str] = {
     "dynamic_interaction_confirmed": "crawl-render-audit",
     "onclick_div_navigation": "crawl-render-audit",
     "javascript_void_href": "crawl-render-audit",
+    "entity_record_absent": "offsite-corroboration",
+    "entity_record_not_reciprocal": "offsite-corroboration",
     "render_backend_unavailable": "pipeline",
     "duplicate_content_detected": "pipeline",
 }

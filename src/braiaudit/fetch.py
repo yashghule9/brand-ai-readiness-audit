@@ -465,9 +465,11 @@ def observe(
         "breadcrumb_present": False,
         "render_blocking_script_count": 0,
         "brand_name_variants": "",
+        "brand_name_candidates": [],
         "ai_crawler_access": {},
         "blocked_ai_crawlers": "",
         "anti_bot_evidence": "",
+        "http_error_evidence": "",
         "internal_links": [],
         "signals": [],
     }
@@ -563,7 +565,49 @@ def observe(
         validate(result, "website-observer")
         return result
 
-    if not body or "html" not in (result["content_type"] or ""):
+    has_usable_body = bool(body) and "html" in (result["content_type"] or "")
+
+    if not has_usable_body:
+        # A 4xx/5xx with no usable body falls through every other detector:
+        # it is not 429 (handled above), and no anti-bot fingerprint matched
+        # (many blocking responses carry no informative header or body at
+        # all — this was found live against a real site returning a bare
+        # 403 with zero bytes). Left unhandled, this produced zero signals
+        # and the page still counted as successfully crawled: a false clean
+        # built entirely on our own inability to retrieve anything.
+        if resp.status_code >= 400:
+            result["http_error_evidence"] = (
+                f"HTTP {resp.status_code} with no retrievable content — the page "
+                "could not be read, for a reason this audit cannot determine "
+                "(access control, geographic or automated-traffic blocking, or a "
+                "genuine server error)"
+            )
+            result["signals"].append("http_error_status_blocked")
+        validate(result, "website-observer")
+        return result
+
+    # A body exists, looks like HTML, and carries no recognised anti-bot
+    # fingerprint — but the status is 403 or 503, the same pair
+    # `_detect_anti_bot` treats as bot-mitigation-relevant. This body could
+    # be a challenge page worded in a way our fingerprint list doesn't know,
+    # or it could be a legitimate response that happens to use one of these
+    # statuses (a paywall teaser, an age-gate, a region notice) while still
+    # carrying real content. Nothing observable here can tell those apart
+    # reliably, and guessing wrong in either direction is a real cost:
+    # analysing a block page as the site fabricates content-quality findings
+    # about a page that was never actually seen; assuming every such
+    # response is blocked would falsely accuse a legitimate one. So this is
+    # reported as an explicit "could not confirm" limitation — scored
+    # nowhere, analysed no further — rather than guessed either way.
+    if resp.status_code in (403, 503):
+        result["http_error_evidence"] = (
+            f"HTTP {resp.status_code} returned a response body, but no confirmed "
+            "bot-mitigation fingerprint matched it. This audit cannot determine "
+            "whether the body is a challenge page in unfamiliar wording or "
+            "genuine content served with this status, so it was not analysed "
+            "as the site's real content."
+        )
+        result["signals"].append("http_error_status_unconfirmed")
         validate(result, "website-observer")
         return result
 
@@ -676,6 +720,11 @@ def observe(
         names = _brand_names(soup, blocks)
         if title_text:
             names["title"] = title_text
+        # Ordered most-authoritative first: schema and og:site_name state the
+        # brand deliberately, a <title> merely contains it.
+        result["brand_name_candidates"] = [
+            names[k] for k in ("Organization.name", "og:site_name", "title") if names.get(k)
+        ]
         distinct = {v.lower().strip() for v in names.values() if v}
         if len(names) >= 2 and len(distinct) > 1:
             # Only report when no stated name contains another: "Acme" inside

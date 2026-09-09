@@ -1,0 +1,470 @@
+{
+  "schema_version": "2.0",
+  "site": "www.isro.gov.in",
+  "audited_at": "2026-09-09T20:18:38Z",
+  "site_info": {
+    "domain": "www.isro.gov.in",
+    "url": "https://www.isro.gov.in/"
+  },
+  "provenance": [],
+  "summary": {
+    "total_findings": 8,
+    "critical": 0,
+    "high": 0,
+    "medium": 7,
+    "readiness_score": 87,
+    "by_axis": {
+      "visibility": {
+        "score": 92,
+        "findings": 3,
+        "evidence_basis": {
+          "modes_fired": 3,
+          "modes_possible": 13
+        }
+      },
+      "staleness": {
+        "score": 90,
+        "findings": 1,
+        "evidence_basis": {
+          "modes_fired": 1,
+          "modes_possible": 7
+        }
+      },
+      "engagement": {
+        "score": 52,
+        "findings": 3,
+        "evidence_basis": {
+          "modes_fired": 3,
+          "modes_possible": 8
+        }
+      },
+      "identity": {
+        "score": 88,
+        "findings": 1,
+        "evidence_basis": {
+          "modes_fired": 1,
+          "modes_possible": 7
+        }
+      }
+    },
+    "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. Axes are scored against themselves and never normalised against each other. null means nothing on that axis could be evaluated. Adding failure modes changes an axis's denominator, so scores are comparable only between runs with the same schema_version. Opportunities and audit limitations never affect the score.",
+    "headline": "8 issue(s) were found across 15 page(s) of www.isro.gov.in, most of them on engagement (3 of 8).",
+    "top_priorities": [
+      {
+        "ref": "F-001",
+        "priority": "medium",
+        "summary": "Concrete Answers Are Buried Below The Opening Content",
+        "type": "finding"
+      },
+      {
+        "ref": "F-002",
+        "priority": "medium",
+        "summary": "Long Content Has Almost No Heading Structure",
+        "type": "finding"
+      },
+      {
+        "ref": "F-003",
+        "priority": "medium",
+        "summary": "Page Does Not State What It Is",
+        "type": "finding"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Concrete Answers Are Buried Below The Opening Content",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.isro.gov.in/.",
+      "suggested_action": {
+        "summary": "Lead with the answer. Put price, availability and key specifications in the opening block of the page, above the fold and outside any accordion, then let the marketing narrative follow. A visitor who can confirm the fact in seconds stays; one who has to search again leaves.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-002",
+      "title": "Long Content Has Almost No Heading Structure",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 10/15 exhibit this failure mode, e.g. https://www.isro.gov.in/.",
+      "suggested_action": {
+        "summary": "Break long content with headings that name what each section answers, roughly one every few hundred words. This serves the scanning reader and the chunker at once \u2014 both are looking for the same boundaries.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/",
+        "https://www.isro.gov.in/3rd_National_Space_Day_2026.html",
+        "https://www.isro.gov.in/AO_utilizing_archival_data_Planet_Venus.html",
+        "https://www.isro.gov.in/Achievements_Department_of_Space_2025.html",
+        "https://www.isro.gov.in/Adiscovery_with_AstroSat.html",
+        "https://www.isro.gov.in/AdityaL1_decodes_Impact_Powerful_Solar_Storm.html",
+        "https://www.isro.gov.in/Aditya_L1_Catches_the_Suns_Early_Warning_Signs.html",
+        "https://www.isro.gov.in/Aditya_L1_Landmark_solar_storm_study.html",
+        "https://www.isro.gov.in/NISARS_Band_SAR_Data_Products_Release.html",
+        "https://www.isro.gov.in/NisarData_soil_moisture_products.html"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-003",
+      "title": "Page Does Not State What It Is",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.isro.gov.in/contact.html.",
+      "suggested_action": {
+        "summary": "Give every page exactly one <h1> naming what the page is about, and a <title> that identifies both the page and the brand. Templates that render the site name alone in both places leave every page looking identical to a machine.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/contact.html"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-004",
+      "title": "Content Is Not Written In The Register Users Ask Questions In",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 14/15 exhibit this failure mode, e.g. https://www.isro.gov.in/.",
+      "suggested_action": {
+        "summary": "Add headings phrased the way customers ask: \"How much does the <product> cost?\", \"Which <product> is best for <use case>?\". Mirror real query phrasing rather than internal product naming, and answer immediately beneath each heading so the pairing is extractable as a unit.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/",
+        "https://www.isro.gov.in/3rd_National_Space_Day_2026.html",
+        "https://www.isro.gov.in/AO_utilizing_archival_data_Planet_Venus.html",
+        "https://www.isro.gov.in/ASEAN_AFSIS_Appreciates_ISRO.html",
+        "https://www.isro.gov.in/Achievements_Department_of_Space_2025.html",
+        "https://www.isro.gov.in/Adiscovery_with_AstroSat.html",
+        "https://www.isro.gov.in/AdityaL1_Mission_Announcement_of_opportunity.html",
+        "https://www.isro.gov.in/AdityaL1_decodes_Impact_Powerful_Solar_Storm.html",
+        "https://www.isro.gov.in/AdityaL1_first_AO_cycle.html",
+        "https://www.isro.gov.in/AdityaL1_second_cycle_AO.html",
+        "https://www.isro.gov.in/Aditya_L1_Catches_the_Suns_Early_Warning_Signs.html",
+        "https://www.isro.gov.in/Aditya_L1_Landmark_solar_storm_study.html",
+        "https://www.isro.gov.in/NISARS_Band_SAR_Data_Products_Release.html",
+        "https://www.isro.gov.in/NisarData_soil_moisture_products.html"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "visibility",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-005",
+      "title": "Sitemap Change Dates Carry No Information",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 15/15 exhibit this failure mode.",
+      "suggested_action": {
+        "summary": "Emit a per-URL <lastmod> reflecting when that page's content last changed, not when the sitemap was regenerated. Identical dates across every entry are worse than none, because they look informative and are not.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/",
+        "https://www.isro.gov.in/3rd_National_Space_Day_2026.html",
+        "https://www.isro.gov.in/AO_utilizing_archival_data_Planet_Venus.html",
+        "https://www.isro.gov.in/ASEAN_AFSIS_Appreciates_ISRO.html",
+        "https://www.isro.gov.in/Achievements_Department_of_Space_2025.html",
+        "https://www.isro.gov.in/Adiscovery_with_AstroSat.html",
+        "https://www.isro.gov.in/AdityaL1_Mission_Announcement_of_opportunity.html",
+        "https://www.isro.gov.in/AdityaL1_decodes_Impact_Powerful_Solar_Storm.html",
+        "https://www.isro.gov.in/AdityaL1_first_AO_cycle.html",
+        "https://www.isro.gov.in/AdityaL1_second_cycle_AO.html",
+        "https://www.isro.gov.in/Aditya_L1_Catches_the_Suns_Early_Warning_Signs.html",
+        "https://www.isro.gov.in/Aditya_L1_Landmark_solar_storm_study.html",
+        "https://www.isro.gov.in/NISARS_Band_SAR_Data_Products_Release.html",
+        "https://www.isro.gov.in/NisarData_soil_moisture_products.html",
+        "https://www.isro.gov.in/contact.html"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "staleness",
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-006",
+      "title": "No Machine-Readable Contact Or Location Details",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 15/15 exhibit this failure mode.",
+      "suggested_action": {
+        "summary": "Publish contact details in markup, not only in an image or a contact form: a tel/mailto link, a postal address, or ContactPoint structured data. Keep the same details across every directory listing so the signature is consistent wherever it is encountered.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/",
+        "https://www.isro.gov.in/3rd_National_Space_Day_2026.html",
+        "https://www.isro.gov.in/AO_utilizing_archival_data_Planet_Venus.html",
+        "https://www.isro.gov.in/ASEAN_AFSIS_Appreciates_ISRO.html",
+        "https://www.isro.gov.in/Achievements_Department_of_Space_2025.html",
+        "https://www.isro.gov.in/Adiscovery_with_AstroSat.html",
+        "https://www.isro.gov.in/AdityaL1_Mission_Announcement_of_opportunity.html",
+        "https://www.isro.gov.in/AdityaL1_decodes_Impact_Powerful_Solar_Storm.html",
+        "https://www.isro.gov.in/AdityaL1_first_AO_cycle.html",
+        "https://www.isro.gov.in/AdityaL1_second_cycle_AO.html",
+        "https://www.isro.gov.in/Aditya_L1_Catches_the_Suns_Early_Warning_Signs.html",
+        "https://www.isro.gov.in/Aditya_L1_Landmark_solar_storm_study.html",
+        "https://www.isro.gov.in/NISARS_Band_SAR_Data_Products_Release.html",
+        "https://www.isro.gov.in/NisarData_soil_moisture_products.html",
+        "https://www.isro.gov.in/contact.html"
+      ],
+      "category": "semantic_deficit",
+      "axis": "identity",
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-007",
+      "title": "No Schema.org / JSON-LD Structured Data Available",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 15/15 exhibit this failure mode.",
+      "suggested_action": {
+        "summary": "Add JSON-LD to the primary templates: Organization (name, logo, foundingDate, sameAs) sitewide, Product plus Offer (name, sku, price, priceCurrency, availability, priceValidUntil) on product pages, FAQPage on support content, and BreadcrumbList for hierarchy. Structured triples let a retrieval pipeline bind a number to \"price\" rather than inferring it from prose, which is where wrong prices in AI answers come from.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/",
+        "https://www.isro.gov.in/3rd_National_Space_Day_2026.html",
+        "https://www.isro.gov.in/AO_utilizing_archival_data_Planet_Venus.html",
+        "https://www.isro.gov.in/ASEAN_AFSIS_Appreciates_ISRO.html",
+        "https://www.isro.gov.in/Achievements_Department_of_Space_2025.html",
+        "https://www.isro.gov.in/Adiscovery_with_AstroSat.html",
+        "https://www.isro.gov.in/AdityaL1_Mission_Announcement_of_opportunity.html",
+        "https://www.isro.gov.in/AdityaL1_decodes_Impact_Powerful_Solar_Storm.html",
+        "https://www.isro.gov.in/AdityaL1_first_AO_cycle.html",
+        "https://www.isro.gov.in/AdityaL1_second_cycle_AO.html",
+        "https://www.isro.gov.in/Aditya_L1_Catches_the_Suns_Early_Warning_Signs.html",
+        "https://www.isro.gov.in/Aditya_L1_Landmark_solar_storm_study.html",
+        "https://www.isro.gov.in/NISARS_Band_SAR_Data_Products_Release.html",
+        "https://www.isro.gov.in/NisarData_soil_moisture_products.html",
+        "https://www.isro.gov.in/contact.html"
+      ],
+      "category": "semantic_deficit",
+      "axis": "visibility",
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-008",
+      "title": "Absent Semantic HTML Structure Undermines Reliable Parsing",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.isro.gov.in/contact.html.",
+      "suggested_action": {
+        "summary": "Use real semantic HTML: <h1>-<h3> for the actual heading hierarchy, <p> for prose, <table> for specifications, and <main>/<article>/<section> for structure. Chunking pipelines split on these boundaries; a page built entirely from <div>s gets split arbitrarily and its facts end up separated from the headings that give them meaning.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://www.isro.gov.in/contact.html"
+      ],
+      "category": "content_noise",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    }
+  ],
+  "audit_limitations": [],
+  "opportunities": [
+    {
+      "priority": "high",
+      "axis": "staleness",
+      "summary": "Add dateModified and datePublished to the JSON-LD on every page whose facts change, show a visible \"last updated\" line, and keep sitemap lastmod values accurate on each edit. Ping IndexNow (which Bing, and through it Copilot, consumes) on publish so updates are pulled promptly instead of waiting for the next crawl.",
+      "rationale": "Without a machine-readable date, a 2019 snapshot and a 2024 page look equally current to a retrieval pipeline, so the older and more-corroborated version tends to win. Freshness has to be stated, not implied by a redesign.",
+      "id": "O-001"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Audit and correct listings on the marketplaces and review sites that rank for your category queries, and make it easy for independent reviewers to be accurate \u2014 publish a press kit with spec sheets and current pricing. This is a corroboration play, not advertising: the goal is that facts about you exist, consistently, off your own domain.",
+      "rationale": "For category queries, live retrieval is dominated by marketplaces, review sites and forum threads rather than brand-owned domains. If a brand is absent or misdescribed on those surfaces, its own site can be flawless and still never enter the candidate set.",
+      "id": "O-002"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Keep a fixed panel of realistic prompts \u2014 category questions, direct brand questions, price and fact probes \u2014 and run them across the assistants your customers use on a regular cadence. Log whether the brand is named, whether it is cited with a source link, which URL is cited, and which competitors appear instead. Track share-of-voice and fact-accuracy over time; these are the KPIs the rest of this report is upstream of.",
+      "rationale": "Neither this audit nor any on-site change can tell you what an assistant actually says about the brand. That has to be sampled directly, and it is the only metric that measures the outcome rather than a proxy for it.",
+      "id": "O-003"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Publish content shaped like the questions being asked: category and comparison pages, \"best X for Y\" guides, and an FAQ page whose headings are verbatim user questions. Mirror real query phrasing in titles and H2s rather than internal product naming.",
+      "rationale": "People ask assistants comparative, price-bounded, colloquial questions (\"best running shoes under 6000 in India\"), not brand questions. Pages written only in brand vocabulary lose the retrieval race to third-party listicles that mirror the query's own phrasing.",
+      "id": "O-004"
+    },
+    {
+      "priority": "medium",
+      "axis": "engagement",
+      "summary": "Make sure the fact-dense deep page exists and is the natural citation target, then surface price, availability and key specs above the fold on it. Detect assistant referrers (document.referrer, UTM tags) and lead with the likely intent rather than the standard homepage pitch.",
+      "rationale": "A visitor arriving from an assistant already knows what they want and arrives mid-task. Landing them on a generic homepage discards the context that brought them and forces them to search again \u2014 the commonest cause of an immediate bounce from AI referral traffic.",
+      "id": "O-005"
+    },
+    {
+      "priority": "medium",
+      "axis": "engagement",
+      "summary": "Segment analytics by referrer class so AI-assistant arrivals are measurable separately from organic search and direct, and track bounce rate, scroll depth and conversion for that cohort. Watch server logs for the AI crawler user-agents too, to confirm they are actually fetching and how often.",
+      "rationale": "This audit observes the site from outside and cannot see who arrives or what they do next. Without first-party segmentation there is no way to tell whether engagement fixes worked.",
+      "id": "O-006"
+    },
+    {
+      "priority": "medium",
+      "axis": "identity",
+      "summary": "Claim a Wikidata entity with sameAs links to the official domain and verified profiles, and add disambiguating context to the on-site Organization schema: industry, foundingDate, registered address. Keep the brand descriptor identical across every directory and listing so the entity signature is consistent wherever it appears.",
+      "rationale": "A brand name shared with a larger entity (an airline, a mythological figure, an unrelated company) loses the disambiguation contest by default \u2014 the assistant resolves the name to whichever entity has stronger corroboration, and the brand vanishes from the answer even though its name was processed.",
+      "id": "O-007"
+    },
+    {
+      "priority": "medium",
+      "axis": "staleness",
+      "summary": "301 each retired product URL to its successor, and state the succession in body text on the destination page. Keep the sentence explicit enough to be quoted: \"<retired model> has been discontinued and is replaced by <successor>.\"",
+      "rationale": "Deleting a discontinued product's page destroys the update relationship between old and new facts. Crawlers see a dead end and keep trusting cached third-party copies of the old listing.",
+      "id": "O-008"
+    },
+    {
+      "priority": "medium",
+      "axis": "staleness",
+      "summary": "Publish a Press/Facts page carrying the current tagline, logo, founding date, leadership, product line and pricing, each with the date it took effect and the prior value it replaced. Link it from the footer so it is reachable from every page.",
+      "rationale": "Corrections propagate only if there is something quotable to propagate. A single dated page stating current brand facts gives every downstream surface \u2014 retrieval pipelines, journalists, directory editors \u2014 one authoritative thing to cite.",
+      "id": "O-009"
+    }
+  ],
+  "meta": {
+    "coverage": {
+      "ontology_version": "2.3",
+      "skills_engaged": [
+        "content-cleaner",
+        "offsite-corroboration",
+        "pipeline",
+        "query-guided-discovery",
+        "query-guided-discovery:target_queries",
+        "website-observer"
+      ],
+      "categories": {
+        "rendering_and_execution": {
+          "label": "Rendering & Execution Failures",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 4,
+          "coverage_pct": 66.7,
+          "not_evaluated": [
+            "DYNAMIC_INTERACTION_BARRIER",
+            "SHADOW_DOM_ENCAPSULATION"
+          ]
+        },
+        "content_noise": {
+          "label": "Content Noise & Layout Distortions",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "discovery_and_pathing": {
+          "label": "Crawl Discovery & Pathing Failures",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 5,
+          "coverage_pct": 83.3,
+          "not_evaluated": [
+            "JAVASCRIPT_NAVIGATION_TRAP"
+          ]
+        },
+        "semantic_deficit": {
+          "label": "Semantic Deficit & Data Integrity",
+          "total_failure_modes": 16,
+          "evaluated_failure_modes": 16,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "compliance_and_access": {
+          "label": "Compliance & Access Governance",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        }
+      },
+      "overall_coverage_pct": 92.5
+    },
+    "validation": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "no_duplicate_titles",
+          "passed": true,
+          "means": "every finding is for a distinct concept, not a re-report of another"
+        },
+        {
+          "name": "no_duplicate_ids",
+          "passed": true,
+          "means": "every finding has a unique id"
+        },
+        {
+          "name": "sequential_ids",
+          "passed": true,
+          "means": "ids are sequential F-001, F-002, ... with no gaps"
+        },
+        {
+          "name": "evidence_non_empty",
+          "passed": true,
+          "means": "every finding cites concrete, non-empty evidence"
+        },
+        {
+          "name": "severity_sorted",
+          "passed": true,
+          "means": "findings are ordered critical -> high -> medium -> low"
+        },
+        {
+          "name": "summary_matches_findings",
+          "passed": true,
+          "means": "the summary block's counts are recomputable from the findings array"
+        },
+        {
+          "name": "sequential_opportunity_ids",
+          "passed": true,
+          "means": "opportunity ids are sequential O-001, O-002, ... with no gaps"
+        },
+        {
+          "name": "every_finding_has_an_action",
+          "passed": true,
+          "means": "no problem is reported without telling the reader what to do about it"
+        }
+      ],
+      "notes": [
+        "3 findings affect exactly the same page(s) (15 URLs) and may share a root cause rather than being independent problems: Sitemap Change Dates Carry No Information; No Machine-Readable Contact Or Location Details; No Schema.org / JSON-LD Structured Data Available.",
+        "2 findings affect exactly the same page(s) (https://www.isro.gov.in/contact.html) and may share a root cause rather than being independent problems: Page Does Not State What It Is; Absent Semantic HTML Structure Undermines Reliable Parsing."
+      ]
+    },
+    "crawl": {
+      "pages_crawled": 15,
+      "pages_unreachable": [],
+      "stopped_early": false,
+      "note": "",
+      "render_triggered": false,
+      "pages_rendered": 0
+    }
+  }
+}

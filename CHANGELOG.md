@@ -6,6 +6,37 @@ All notable changes to this project are documented here. Format follows
 (`marketplace.json`'s `marketplace_version` tracks the *skill definitions*
 separately and moves more slowly).
 
+## [0.9.1] — 2026-09-10
+
+### Fixed
+
+- **A 403/503 response with a real, non-empty, unrecognized body was
+  analysed as the site's actual content.** The existing empty-body handling
+  (`HTTP_ERROR_STATUS_BLOCKED`) only fires when a 4xx/5xx body is empty or
+  non-HTML; a small but real HTML body — a block page worded outside the
+  known anti-bot fingerprint list, live-observed against infosys.com and
+  meesho.com — fell through unchanged into full content analysis, producing
+  findings that described the block page rather than the site. Scoped
+  narrowly to status 403/503 (the same pair the anti-bot fingerprint check
+  already treats specially) with real HTML content and no matching
+  fingerprint: the response body is no longer analysed, and a new signal,
+  `http_error_status_unconfirmed`, reports the ambiguity as an unscored
+  `kind: limitation` (`HTTP_ERROR_STATUS_UNCONFIRMED`) rather than guessing
+  "blocked" or "genuine" in either direction. An ordinary 404 with a real
+  body — the common case for a dead link found mid-crawl — is untouched.
+  Verified live: infosys.com and meesho.com go from several fabricated
+  content findings each to zero findings plus one honest limitation.
+
+### Note on documentation
+
+This entry is the first CHANGELOG update since 0.5.0, though `pyproject.toml`
+had already reached 0.9.0 — the intervening work (a scoring-model rework to
+per-axis percentages, twelve new staleness/engagement/identity detectors,
+and Phase 2's off-site corroboration module) was implemented but never
+written up here. See `docs/PHASE2_BASELINE.md` for the closeout state as of
+this entry; backfilling the missing 0.6.0–0.9.0 entries from memory was
+judged too likely to be inaccurate and was not attempted.
+
 ## [0.5.0] — 2026-09-05
 
 ### Added

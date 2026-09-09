@@ -107,14 +107,14 @@ def test_score_penalises_by_severity_and_splits_by_axis():
 
     readiness = report["summary"]
     # Each axis is scored against its own evaluable weight, never the others'.
-    # visibility: 25 lost of 131 evaluable  -> 81
+    # visibility: 25 lost of 156 evaluable  -> 84
     # staleness:  12 lost of  50 evaluable  -> 76
-    assert readiness["by_axis"]["visibility"]["score"] == 81
+    assert readiness["by_axis"]["visibility"]["score"] == 84
     assert readiness["by_axis"]["staleness"]["score"] == 76
     assert readiness["by_axis"]["engagement"]["score"] == 100
     assert readiness["by_axis"]["engagement"]["findings"] == 0
-    # Overall is the same computation across every axis: 37 of 233.
-    assert readiness["readiness_score"] == 84
+    # Overall is the same computation across every axis: 37 of 258.
+    assert readiness["readiness_score"] == 86
     # The rule has to be reproducible by hand, not a black box.
     assert "never normalised against each" in readiness["score_formula"]
 
@@ -136,7 +136,7 @@ def test_repeated_failure_mode_is_penalised_once_not_per_page():
 
     assert report["summary"]["total_findings"] == 1
     # One critical worth 25, against visibility's 131 evaluable weight.
-    assert report["summary"]["by_axis"]["visibility"]["score"] == 81
+    assert report["summary"]["by_axis"]["visibility"]["score"] == 84
 
 
 def test_score_floors_at_zero():

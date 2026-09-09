@@ -164,6 +164,17 @@
     "anti_bot_evidence": {
       "type": "string",
       "description": "What the bot-mitigation challenge actually looked like (status code plus matched fingerprint). Empty when no challenge was served."
+    },
+    "brand_name_candidates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Brand names as stated by the page, most authoritative first. Feeds off-site entity lookup, where the right name variant decides whether a record is found at all."
+    },
+    "http_error_evidence": {
+      "type": "string",
+      "description": "What the error response looked like when a 4xx/5xx returned no usable body and no anti-bot fingerprint matched. Empty when the page was retrieved or a more specific check already explains the failure."
     }
   }
 }
