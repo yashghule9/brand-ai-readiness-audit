@@ -41,7 +41,7 @@
 # runtime — but a signal it lists must actually be emitted by some producer
 # or it will simply never fire.
 
-ontology_version: "2.3"
+ontology_version: "2.4"
 
 categories:
   rendering_and_execution:
@@ -976,6 +976,42 @@ failure_modes:
     recovery_strategy: manual_investigation
     recommended_tool: none
     audit_finding_title: "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine"
+  NO_ANALYSABLE_PAGE_EVIDENCE:
+    category: compliance_and_access
+    axis: visibility
+    kind: limitation
+    severity: medium
+    match_mode: all
+    signals: [no_analysable_page_evidence]
+    description: >
+      Not one page in this audit yielded content that could be analysed:
+      every URL attempted was either unreachable (DNS, connection or
+      timeout failure) or returned a response the audit deliberately
+      declined to read as the site's content — a blocked status, an
+      anti-bot challenge, a rate limit, or a robots.txt disallow. The
+      readiness checks therefore had nothing to run against. This says
+      what this audit could not obtain, not what the site is: a site that
+      serves a challenge to an unrecognised client may serve perfectly
+      good content to a browser, and nothing observable from here settles
+      that. Because no check could be evaluated, the readiness score is
+      reported as null rather than as a number — an absent score, not a
+      perfect one and not a failing one. Any access finding reported
+      alongside this limitation stands on its own evidence and is
+      unaffected.
+    remediation: >
+      No site change is implied by this limitation on its own. Load the
+      seed URL manually with a plain HTTP client and a generic user-agent,
+      the way this audit did, and read what actually comes back. If the
+      host does not resolve, confirm the apex domain has a DNS record and
+      whether the canonical entry point is a different host. If a challenge
+      or block page comes back, that is an access question — see any
+      accompanying access finding for the specific evidence. Once one page
+      returns readable content, re-run the audit and the readiness checks
+      will have something to evaluate.
+    recovery_strategy: manual_investigation
+    recommended_tool: none
+    audit_finding_title: "No Page Yielded Content This Audit Could Analyse"
+
 # =====================================================================
 # Proactive opportunities
 # =====================================================================

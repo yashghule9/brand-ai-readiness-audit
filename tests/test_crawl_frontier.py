@@ -298,7 +298,7 @@ def test_rendered_links_are_canonicalised_before_entering_the_frontier(monkeypat
 @__import__("responses").activate
 def test_error_status_with_no_body_is_a_finding_not_a_false_clean():
     """A 403 with zero bytes and no matching anti-bot fingerprint used to
-    produce zero signals and count as a successfully crawled page â€” a site
+    produce zero signals and count as a successfully crawled page — a site
     scored 100 while we had actually retrieved nothing at all. Found live
     against a real site returning a bare 403."""
     import responses
@@ -323,7 +323,11 @@ def test_error_status_with_no_body_is_a_finding_not_a_false_clean():
     assert "Page Returns An Error Status With No Retrievable Content" in titles
     assert report["summary"]["critical"] >= 1
     # And it must not silently be counted as a clean, fully-audited page.
-    assert report["summary"]["readiness_score"] < 100
+    # The 403 is the only page there was, so nothing about the site's content
+    # was ever observed: the score abstains rather than reporting a number
+    # derived entirely from the one thing we could see (that we saw nothing).
+    assert report["summary"]["readiness_score"] is None
+    assert all(a["score"] is None for a in report["summary"]["by_axis"].values())
 
 
 @__import__("responses").activate
@@ -433,15 +437,20 @@ def test_403_unconfirmed_is_an_unscored_limitation_not_a_defect():
     assert "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine" not in titles
     limitation_titles = {lim["title"] for lim in report["audit_limitations"]}
     assert "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine" in limitation_titles
-    assert report["summary"]["readiness_score"] == 100
+    # Was `== 100`, which proved score-neutrality only by accident: the 403 was
+    # the sole page, so that 100 was really "nothing was checked" wearing a
+    # number. The score now abstains. Limitation score-neutrality is proven
+    # properly, against a page that *was* readable, in
+    # test_limitation_alongside_readable_page_is_score_neutral.
+    assert report["summary"]["readiness_score"] is None
 
 
 @__import__("responses").activate
 def test_a_genuine_404_with_real_content_is_still_processed_normally():
     """The conservative scope matters: only 403/503 (the same pair the
     anti-bot fingerprint check already treats specially) are diverted to the
-    "unconfirmed" limitation. An ordinary 404 with a real body â€” the
-    overwhelmingly common case when a crawled link is simply dead â€” must
+    "unconfirmed" limitation. An ordinary 404 with a real body — the
+    overwhelmingly common case when a crawled link is simply dead — must
     keep going through normal content analysis exactly as before, so a
     legitimate error response is never swept into "possibly blocked"."""
     import responses
@@ -556,3 +565,234 @@ def test_discovery_callback_refuses_off_host_urls(monkeypatch):
     # On-host candidates are unaffected — the guard rejects by host, not by
     # refusing to run discovery at all.
     assert any("example.com" in u for u in fetched_by_callback)
+
+
+# ---------------------------------------------------------------------------
+# Score honesty: "never checked" must not read as "checked and passed".
+#
+# Every audit below reached zero *analysable* pages — the site's content was
+# never observed — so the readiness score abstains. That is an absent score,
+# not a perfect one and not a failing one: nothing is deducted, a number is
+# withheld. See report._score and the NO_ANALYSABLE_PAGE_EVIDENCE limitation.
+# ---------------------------------------------------------------------------
+
+_UNREACHABLE_LIMITATION = "No Page Yielded Content This Audit Could Analyse"
+
+
+@__import__("responses").activate
+def test_zero_page_unreachable_audit_abstains_from_scoring():
+    """CASE A. Two real sites (asianpaints.com, nykaa.com) returned score 100
+    off zero crawled pages: the observer was marked engaged before the fetch
+    was known to have failed, so its modes counted as evaluable, none fired,
+    and 100 x (1 - 0/possible) came out perfect. An unreachable site must
+    yield no score at all."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body=requests.ConnectionError("no route")
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    assert report["meta"]["crawl"]["pages_crawled"] == 0
+    assert report["summary"]["readiness_score"] is None
+    assert all(a["score"] is None for a in report["summary"]["by_axis"].values())
+
+    # Exactly one limitation, and it is the reachability one. The headline has
+    # always said "See audit_limitations" here; until now that array was empty.
+    limitations = report["audit_limitations"]
+    assert [lim["title"] for lim in limitations] == [_UNREACHABLE_LIMITATION]
+    assert "See audit_limitations" in report["summary"]["headline"]
+
+    # A page we could not read is not a defect we may attribute to the site.
+    assert report["findings"] == []
+    assert report["summary"]["total_findings"] == 0
+
+    # And the detail must not read "1 of 0 page(s) crawled".
+    assert "of 0 page(s)" not in limitations[0]["detail"]
+
+
+@__import__("responses").activate
+def test_halted_only_audit_abstains_and_keeps_its_access_finding():
+    """CASE B. etsy/lego/titan each fetched exactly one page — a bot challenge
+    — and scored 90 or 85, better than gitlab's 77 off a complete 15-page
+    crawl. The challenge is real evidence about reachability and keeps its
+    critical finding; what it is not is evidence about the site's content."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><body>Attention Required! | Cloudflare</body></html>",
+        status=403,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    # The page was fetched, so it counts as crawled — but nothing about the
+    # site's content came back through it.
+    assert report["meta"]["crawl"]["pages_crawled"] == 1
+    assert report["summary"]["readiness_score"] is None
+    assert all(a["score"] is None for a in report["summary"]["by_axis"].values())
+
+    titles = {f["title"] for f in report["findings"]}
+    assert "Anti-Bot Challenge Blocks Automated Access" in titles
+
+    limitation_titles = [lim["title"] for lim in report["audit_limitations"]]
+    assert _UNREACHABLE_LIMITATION in limitation_titles
+
+
+@__import__("responses").activate
+def test_readable_page_still_scores_normally():
+    """CASE C. The abstention must be narrow. One analysable page is evidence,
+    so the score stays a number — otherwise the fix would silently delete
+    scoring for every site in the corpus."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body=(
+            "<html><head><title>Example Tools</title>"
+            '<meta name="description" content="Example makes accounting tools.">'
+            "</head><body><main><h1>Example Tools</h1>"
+            "<p>Example Tools is an accounting suite for small businesses, "
+            "based in Bengaluru, India. Pricing starts at 499 rupees a month. "
+            "The product has shipped continuously since 2014 and is used by "
+            "roughly forty thousand businesses across the country today.</p>"
+            "</main></body></html>"
+        ),
+        status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    assert report["meta"]["crawl"]["pages_crawled"] == 1
+    assert isinstance(report["summary"]["readiness_score"], int)
+    assert 0 <= report["summary"]["readiness_score"] <= 100
+    assert any(a["score"] is not None for a in report["summary"]["by_axis"].values())
+    assert _UNREACHABLE_LIMITATION not in {
+        lim["title"] for lim in report["audit_limitations"]
+    }
+
+
+@__import__("responses").activate
+def test_one_readable_page_among_unreachable_ones_still_scores():
+    """CASE D. Partial evidence keeps the existing semantics untouched: a
+    crawl that reached some pages and lost others is scored on what it read.
+    No partial-credit gradient, no new philosophy — the abstention triggers
+    only at zero."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body=(
+            "<html><head><title>Example Tools</title></head><body><main>"
+            "<h1>Example Tools</h1><p>Example Tools is an accounting suite "
+            "for small businesses based in Bengaluru, India, shipping since "
+            "2014 and used by forty thousand businesses today.</p>"
+            '<a href="https://example.com/gone">Gone</a></main></body></html>'
+        ),
+        status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET,
+        "https://example.com/gone",
+        body=requests.ConnectionError("no route"),
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    assert report["meta"]["crawl"]["pages_unreachable"] == ["https://example.com/gone"]
+    assert report["summary"]["readiness_score"] is not None
+    assert _UNREACHABLE_LIMITATION not in {
+        lim["title"] for lim in report["audit_limitations"]
+    }
+
+
+def test_limitation_alongside_readable_page_is_score_neutral():
+    """CASE E. Limitations describe the audit, not the site, so adding one
+    must move no number. Asserted directly against the assembler: same
+    findings, same evidence, once with a limitation-kind mode firing and once
+    without."""
+    from braiaudit.report import assemble_report
+
+    def build(extra_signals: list[str]) -> dict:
+        return assemble_report(
+            site="example.com",
+            findings_by_url={
+                "https://example.com/": _diagnose(
+                    "https://example.com/",
+                    {"signals": ["missing_schema_org", *extra_signals]},
+                )
+            },
+            pages_crawled=1,
+            analysable_pages=1,
+            skills_engaged={"pipeline", "website-observer", "crawl-render-audit"},
+        )
+
+    without = build([])
+    with_limitation = build(["render_backend_unavailable"])
+
+    assert with_limitation["audit_limitations"], "expected the limitation to fire"
+    assert not without["audit_limitations"]
+    assert (
+        with_limitation["summary"]["readiness_score"]
+        == without["summary"]["readiness_score"]
+    )
+    assert with_limitation["summary"]["by_axis"] == without["summary"]["by_axis"]
+
+
+@__import__("responses").activate
+def test_abstaining_report_still_validates_against_the_schema():
+    """CASE F. `null` was always the documented intent — the schema types
+    readiness_score as ["integer", "null"] and by_axis.score likewise — so the
+    abstaining report must validate with no schema change at all."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+    from braiaudit.schemas import validate
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body=requests.ConnectionError("down")
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    validate(report, "audit-report")
+    assert report["summary"]["readiness_score"] is None

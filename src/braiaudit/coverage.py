@@ -6,9 +6,9 @@ every relevant check ran, the orchestrator can answer "how much of the
 audit space did we actually inspect this run?" per category, and know
 explicitly when a category (e.g. everything gated behind
 `crawl-render-audit`) went unevaluated because a backend wasn't installed
-or a budget ran out â€” instead of that gap silently reading as "clean."
+or a budget ran out — instead of that gap silently reading as "clean."
 
-This module never runs a check itself â€” it only knows, after the fact,
+This module never runs a check itself — it only knows, after the fact,
 which *sources* (skills, optionally qualified by a precondition like
 `target_queries` being supplied) were actually engaged during a run, and
 cross-references that against which signals each ontology failure mode
@@ -23,7 +23,7 @@ from braiaudit.ontology import Ontology, load_ontology
 
 # Which producer (skill) emits each signal literal. A few signals are
 # additionally qualified by a precondition (e.g. `target_queries` must be
-# supplied) â€” `pipeline.engaged_skills()` emits both the plain and the
+# supplied) — `pipeline.engaged_skills()` emits both the plain and the
 # qualified form so a signal declaring the qualified source only counts as
 # covered when that precondition actually held this run.
 SIGNAL_SOURCES: dict[str, str] = {
@@ -76,6 +76,7 @@ SIGNAL_SOURCES: dict[str, str] = {
     "entity_record_not_reciprocal": "offsite-corroboration",
     "render_backend_unavailable": "pipeline",
     "duplicate_content_detected": "pipeline",
+    "no_analysable_page_evidence": "pipeline",
 }
 
 

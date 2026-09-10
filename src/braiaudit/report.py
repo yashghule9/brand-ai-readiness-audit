@@ -25,11 +25,11 @@ _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 # 2.0: per-axis scores became a percentage of that axis's own weighted
 # evaluable modes rather than "100 minus penalties". Adding failure modes
 # changes an axis's denominator, so scores are comparable only within a
-# schema version â€” hence the stamp on every report.
+# schema version — hence the stamp on every report.
 SCHEMA_VERSION = "2.0"
 
 # compliance_and_access findings are policy statements, not statistical
-# patterns â€” a single confirmed hit is fully corroborated regardless of
+# patterns — a single confirmed hit is fully corroborated regardless of
 # how many pages were sampled (see SKILL.md step 2).
 _NEVER_DOWNGRADED_CATEGORY = "compliance_and_access"
 
@@ -39,6 +39,7 @@ def assemble_report(
     findings_by_url: dict[str, list[dict[str, Any]]],
     pages_crawled: int,
     pages_unreachable: list[str] | None = None,
+    analysable_pages: int | None = None,
     audited_at: str | None = None,
     skills_engaged: set[str] | None = None,
     crawl_note: str = "",
@@ -53,13 +54,23 @@ def assemble_report(
     """Assemble, corroborate, and validate the final audit report.
 
     `skills_engaged` (see `braiaudit.coverage.SIGNAL_SOURCES` and
-    `braiaudit.pipeline._engaged_skills`) drives the `meta.coverage` block â€”
+    `braiaudit.pipeline._engaged_skills`) drives the `meta.coverage` block —
     omit it only for a standalone/test call where coverage reporting isn't
     needed; the report still validates against the floor schema either way,
     since `meta` is an additive, non-required field.
+
+    `analysable_pages` is how many pages yielded content the checks could
+    actually run against — fetched *and* not halted by a block, challenge or
+    robots disallow. It is deliberately distinct from `pages_crawled`, which
+    counts a challenged page because it was fetched. Zero means this audit
+    holds no evidence about the site's content, and the score abstains. It
+    defaults to `pages_crawled` so a standalone caller that never had the
+    distinction keeps its existing behaviour.
     """
     ontology = load_ontology()
     pages_unreachable = pages_unreachable or []
+    if analysable_pages is None:
+        analysable_pages = pages_crawled
 
     by_mode: dict[str, list[tuple[str, dict[str, Any]]]] = defaultdict(list)
     for url, findings in findings_by_url.items():
@@ -107,9 +118,16 @@ def assemble_report(
             # Not the corroboration sentence used for defects: "1/1 exhibit
             # this failure mode" reads as an accusation about the site, when
             # the point is that we could not look.
+            # "1 of 0 page(s) crawled" is nonsense, and a zero-page audit is
+            # exactly when a limitation most needs to read clearly.
             "detail": (
                 f"Could not be verified on {len(f['_affected_urls'])} of "
                 f"{pages_crawled} page(s) crawled."
+                if pages_crawled
+                else (
+                    f"No page could be crawled; "
+                    f"{len(f['_affected_urls'])} URL(s) attempted."
+                )
             ),
             "resolution": f["suggested_action"]["summary"],
             "affected_urls": f["_affected_urls"],
@@ -149,7 +167,7 @@ def assemble_report(
     }
 
     evaluable = coverage_mod.evaluable_modes_by_axis(skills_engaged or set(), ontology)
-    readiness = _score(findings, evaluable)
+    readiness = _score(findings, evaluable, analysable_pages)
     opportunities = _opportunities(findings, ontology)
     report = {
         "schema_version": SCHEMA_VERSION,
@@ -191,7 +209,7 @@ def assemble_report(
 
     # --- Meta-analysis stage: "are our conclusions about what's wrong with
     # the site actually correct, consistent, non-duplicated, and
-    # well-supported?" â€” a different question than the findings themselves
+    # well-supported?" — a different question than the findings themselves
     # answer. See braiaudit.meta and braiaudit.coverage for what each half
     # checks; both are additive (schema-optional) and never change a
     # finding's content, only report on the findings as a whole.
@@ -202,7 +220,7 @@ def assemble_report(
             "pages_crawled": pages_crawled,
             "pages_unreachable": pages_unreachable,
             "stopped_early": bool(crawl_note),
-            # Empty unless a budget cut the crawl short â€” a partial crawl must
+            # Empty unless a budget cut the crawl short — a partial crawl must
             # never read as a complete one.
             "note": crawl_note,
             # Exact counts, not inferred: a page counts as rendered only when
@@ -225,7 +243,9 @@ _AXES = ("visibility", "staleness", "engagement", "identity")
 
 
 def _score(
-    findings: list[dict[str, Any]], evaluable: dict[str, list[Any]]
+    findings: list[dict[str, Any]],
+    evaluable: dict[str, list[Any]],
+    analysable_pages: int,
 ) -> dict[str, Any]:
     """Per-axis score as a percentage of that axis's own weighted evaluable
     modes, plus an overall score computed the same way across all axes.
@@ -239,6 +259,17 @@ def _score(
     check gated behind a skill that never ran is not something the site
     passed, so including it would inflate the score exactly where the audit
     is weakest.
+
+    `analysable_pages` closes the gap that gate leaves open. Skill engagement
+    answers "did the producer run?", never "did it come back with anything?" —
+    so a site whose every URL was unreachable or served a challenge still
+    marked website-observer engaged, counted its modes as evaluable, fired
+    none of them, and scored 100. Zero analysable pages means the run holds no
+    evidence either way, so every axis and the overall score abstain. That is
+    an absent score, not a perfect one and not a failing one: nothing is
+    deducted, a number is withheld. Access findings still stand — they are
+    evidence about reachability, which is exactly what *was* observed — but a
+    percentage computed from them alone would describe the audit, not the site.
 
     Only findings score. Opportunities are advice, and limitations describe
     the audit rather than the site; neither belongs in either term.
@@ -259,8 +290,13 @@ def _score(
 
         by_axis[axis] = {
             # No evaluable modes means nothing was checked on this axis. That
-            # is not a perfect score; it is an absent one.
-            "score": round(100 * (1 - lost / possible)) if possible else None,
+            # is not a perfect score; it is an absent one. Same conclusion,
+            # different cause, when the run analysed no page at all.
+            "score": (
+                round(100 * (1 - lost / possible))
+                if possible and analysable_pages
+                else None
+            ),
             "findings": len(axis_findings),
             "evidence_basis": {
                 "modes_fired": len(axis_findings),
@@ -269,13 +305,19 @@ def _score(
         }
 
     return {
-        "score": round(100 * (1 - total_lost / total_possible)) if total_possible else None,
+        "score": (
+            round(100 * (1 - total_lost / total_possible))
+            if total_possible and analysable_pages
+            else None
+        ),
         "by_axis": by_axis,
         "formula": (
             "Per axis: 100 x (1 - weight of failed modes / weight of that axis's "
             "evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. "
             "Axes are scored against themselves and never normalised against each "
-            "other. null means nothing on that axis could be evaluated. Adding "
+            "other. null means nothing on that axis could be evaluated, and the "
+            "whole score is null when no page yielded analysable content — an "
+            "absent score, never a perfect or a failing one. Adding "
             "failure modes changes an axis's denominator, so scores are comparable "
             "only between runs with the same schema_version. Opportunities and "
             "audit limitations never affect the score."
@@ -290,7 +332,7 @@ def _opportunities(findings: list[dict[str, Any]], ontology: Any) -> list[dict[s
     anything was found wrong, because an audit that only lists defects
     under-serves a brand whose real problem is something it never built.
     Each finding already carries its own fix in `suggested_action`, so
-    nothing here restates one â€” an opportunity whose ground a finding
+    nothing here restates one — an opportunity whose ground a finding
     already covers is dropped via `suppressed_by`.
     """
     actions: list[dict[str, Any]] = []
@@ -330,14 +372,14 @@ def _headline(
     pages_crawled: int,
 ) -> str:
     """One sentence a non-expert can act on, stating what was actually
-    checked as well as what was found â€” a score with no sample size behind
+    checked as well as what was found — a score with no sample size behind
     it invites more confidence than the evidence supports."""
     critical = sum(1 for f in findings if f["severity"] == "critical")
 
     # Name the axis carrying the most findings, not the lowest score. Axis
-    # scores are percentages of different denominators â€” an axis with two
+    # scores are percentages of different denominators — an axis with two
     # evaluable modes swings between 0 and 100 in single steps, while one
-    # with twelve moves smoothly â€” so "lowest score wins" would keep electing
+    # with twelve moves smoothly — so "lowest score wins" would keep electing
     # whichever axis happens to be coarsest rather than whichever is worst.
     # Axes that could not be evaluated at all are excluded: they have nothing
     # to say either way.
@@ -413,7 +455,7 @@ def _parse_status(occurrences: list[tuple[str, dict[str, Any]]]) -> str:
     """`unknown` if any contributing observation could not be parsed.
 
     A detector that failed to read the markup must never have its silence
-    read as "the site is fine" â€” nor, worse, as "the signal is bad". Unknown
+    read as "the site is fine" — nor, worse, as "the signal is bad". Unknown
     propagates up and scores nothing.
     """
     statuses = {o[1].get("parse_status", "ok") for o in occurrences}

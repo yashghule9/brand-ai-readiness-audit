@@ -31,19 +31,19 @@ DEFAULT_USER_AGENT = "BrandAIReadinessAuditBot/1.0 (+https://example.com/bot)"
 
 # The crawlers that actually feed AI answer engines. A site can be perfectly
 # crawlable by classic search and still be invisible to every assistant if
-# robots.txt names these agents â€” the single most common root cause of "we
+# robots.txt names these agents — the single most common root cause of "we
 # don't appear in ChatGPT/Gemini." Evaluated against the already-parsed
 # robots.txt, so checking all of them costs zero extra requests.
 AI_CRAWLER_USER_AGENTS: dict[str, str] = {
-    "GPTBot": "OpenAI â€” ChatGPT retrieval and training",
-    "OAI-SearchBot": "OpenAI â€” ChatGPT search index",
-    "ChatGPT-User": "OpenAI â€” user-initiated page fetch",
-    "ClaudeBot": "Anthropic â€” Claude retrieval",
-    "anthropic-ai": "Anthropic â€” legacy agent token",
-    "PerplexityBot": "Perplexity â€” search index",
-    "Google-Extended": "Google â€” Gemini grounding and AI Overviews",
-    "Applebot-Extended": "Apple â€” Apple Intelligence",
-    "CCBot": "Common Crawl â€” feeds many training corpora",
+    "GPTBot": "OpenAI — ChatGPT retrieval and training",
+    "OAI-SearchBot": "OpenAI — ChatGPT search index",
+    "ChatGPT-User": "OpenAI — user-initiated page fetch",
+    "ClaudeBot": "Anthropic — Claude retrieval",
+    "anthropic-ai": "Anthropic — legacy agent token",
+    "PerplexityBot": "Perplexity — search index",
+    "Google-Extended": "Google — Gemini grounding and AI Overviews",
+    "Applebot-Extended": "Apple — Apple Intelligence",
+    "CCBot": "Common Crawl — feeds many training corpora",
 }
 
 # Classic search crawlers, used only as a contrast set: allowing these while
@@ -87,7 +87,7 @@ _VISIBLE_FRESHNESS_PATTERN = re.compile(
 
 # schema.org properties whose value is a short brand-identity string. When one
 # of these is absent from the page a human reads, the structured data has
-# drifted from the visible site â€” the rebrand-desync failure mode.
+# drifted from the visible site — the rebrand-desync failure mode.
 _IDENTITY_STRING_PROPERTIES = ("slogan", "alternateName", "legalName")
 
 # A page that quotes prices or asks for a purchase is one an assistant gets
@@ -96,7 +96,7 @@ _IDENTITY_STRING_PROPERTIES = ("slogan", "alternateName", "legalName")
 # the same severity is a false positive.
 _COMMERCE_PATTERNS = re.compile(
     r"(add to (cart|bag)|buy now|shop now|in stock|out of stock|free shipping"
-    r"|[$Â£â‚¬â‚¹]\s?\d[\d,.]*|(usd|eur|gbp|inr)\s?\d)",
+    r"|[$£€₹]\s?\d[\d,.]*|(usd|eur|gbp|inr)\s?\d)",
     re.IGNORECASE,
 )
 
@@ -128,8 +128,8 @@ def normalize_url(target: str) -> str:
 def site_label(target: str) -> str:
     """The bare host for a domain or full URL: 'example.com'.
 
-    Accepts what a person types on a command line â€” 'example.com',
-    'https://www.example.com/', 'http://example.com/path' â€” so the report's
+    Accepts what a person types on a command line — 'example.com',
+    'https://www.example.com/', 'http://example.com/path' — so the report's
     `site` field is a domain rather than whatever spelling was passed in.
     """
     parsed = urllib.parse.urlparse(normalize_url(target))
@@ -139,7 +139,7 @@ def site_label(target: str) -> str:
 # Public suffixes with more than one label, where the last two labels are the
 # *suffix* and carry no registrable name. Without this, every `*.gov.in`
 # reduces to "gov.in" and two unrelated organisations (isro.gov.in and
-# nasa.gov.in) compare as the same domain â€” a false equivalence that silently
+# nasa.gov.in) compare as the same domain — a false equivalence that silently
 # masks a real mismatch. Not a full public-suffix list, and deliberately not a
 # new dependency: this covers the suffixes that appear in this project's own
 # corpus plus the common English-language ones.
@@ -196,7 +196,7 @@ def fetch_robots(url: str, user_agent: str, session: requests.Session) -> Robots
         disallowed_for_agent=disallowed,
         crawl_delay_seconds=float(delay) if delay is not None else None,
         sitemap_urls=sitemaps,
-        # Same parsed file, no extra requests â€” see AI_CRAWLER_USER_AGENTS.
+        # Same parsed file, no extra requests — see AI_CRAWLER_USER_AGENTS.
         ai_agent_access={a: rp.can_fetch(a, url) for a in AI_CRAWLER_USER_AGENTS},
         classic_agent_access={a: rp.can_fetch(a, url) for a in _CLASSIC_CRAWLER_USER_AGENTS},
     )
@@ -344,7 +344,7 @@ def analyse_structured_data(blocks: list[dict], visible_text: str) -> dict[str, 
 
     # legalName and sameAs are already read above; retaining the values
     # rather than only the booleans exposes facts the pipeline had observed
-    # and was discarding. No signal derives from these â€” they exist so a
+    # and was discarding. No signal derives from these — they exist so a
     # consumer can see what the site declares about itself.
     legal_name = ""
     for block in organizations:
@@ -427,7 +427,7 @@ def _brand_names(soup: BeautifulSoup, blocks: list[dict]) -> dict[str, str]:
 
 def _has_contact_details(soup: BeautifulSoup, blocks: list[dict]) -> bool:
     """Whether any machine-readable way to contact or locate the operator
-    exists â€” a phone or mail link, a postal address, or ContactPoint markup.
+    exists — a phone or mail link, a postal address, or ContactPoint markup.
 
     Entity resolution leans on this: a consistent name-address-phone
     signature is what separates a brand from others sharing its name.
@@ -445,7 +445,7 @@ def _has_contact_details(soup: BeautifulSoup, blocks: list[dict]) -> bool:
 
 
 def _render_blocking_scripts(soup: BeautifulSoup) -> int:
-    """Scripts in <head> with neither async nor defer â€” they block parsing.
+    """Scripts in <head> with neither async nor defer — they block parsing.
 
     A lab proxy: it measures markup, not the load time a visitor experiences,
     and is labelled `lab` in the ontology so it is never read as a field
@@ -481,7 +481,7 @@ def observe(
 
     `origin_cache` memoises robots.txt and sitemap.xml per origin for the
     life of one audit. Both are per-site documents, so refetching them for
-    every page of a crawl is pure waste â€” two extra round trips per page,
+    every page of a crawl is pure waste — two extra round trips per page,
     which on a slow host is most of the crawl's wall-clock time.
     """
     url = normalize_url(url)
@@ -615,7 +615,7 @@ def observe(
     if fingerprint:
         result["anti_bot_evidence"] = (
             f"HTTP {resp.status_code} carrying the bot-mitigation fingerprint "
-            f"{fingerprint!r} â€” the page a crawler receives is a challenge, not content"
+            f"{fingerprint!r} — the page a crawler receives is a challenge, not content"
         )
         result["signals"].append("anti_bot_challenge_detected")
         validate(result, "website-observer")
@@ -627,13 +627,13 @@ def observe(
         # A 4xx/5xx with no usable body falls through every other detector:
         # it is not 429 (handled above), and no anti-bot fingerprint matched
         # (many blocking responses carry no informative header or body at
-        # all â€” this was found live against a real site returning a bare
+        # all — this was found live against a real site returning a bare
         # 403 with zero bytes). Left unhandled, this produced zero signals
         # and the page still counted as successfully crawled: a false clean
         # built entirely on our own inability to retrieve anything.
         if resp.status_code >= 400:
             result["http_error_evidence"] = (
-                f"HTTP {resp.status_code} with no retrievable content â€” the page "
+                f"HTTP {resp.status_code} with no retrievable content — the page "
                 "could not be read, for a reason this audit cannot determine "
                 "(access control, geographic or automated-traffic blocking, or a "
                 "genuine server error)"
@@ -643,7 +643,7 @@ def observe(
         return result
 
     # A body exists, looks like HTML, and carries no recognised anti-bot
-    # fingerprint â€” but the status is 403 or 503, the same pair
+    # fingerprint — but the status is 403 or 503, the same pair
     # `_detect_anti_bot` treats as bot-mitigation-relevant. This body could
     # be a challenge page worded in a way our fingerprint list doesn't know,
     # or it could be a legitimate response that happens to use one of these
@@ -653,8 +653,8 @@ def observe(
     # analysing a block page as the site fabricates content-quality findings
     # about a page that was never actually seen; assuming every such
     # response is blocked would falsely accuse a legitimate one. So this is
-    # reported as an explicit "could not confirm" limitation â€” scored
-    # nowhere, analysed no further â€” rather than guessed either way.
+    # reported as an explicit "could not confirm" limitation — scored
+    # nowhere, analysed no further — rather than guessed either way.
     if resp.status_code in (403, 503):
         result["http_error_evidence"] = (
             f"HTTP {resp.status_code} returned a response body, but no confirmed "
@@ -786,7 +786,7 @@ def observe(
         # Only Organization.name and og:site_name are deliberate declarations
         # of what the brand is called. A <title> is a page title that often
         # merely contains the brand ("Zerodha: Online brokerage platform for
-        # stock trading & investing"), so it is kept out of this field â€” a
+        # stock trading & investing"), so it is kept out of this field — a
         # consumer treating a title as a brand name would ask worse questions
         # than one falling back to the domain label.
         result["declared_brand_name"] = (
@@ -819,11 +819,11 @@ def observe(
         signals.append("missing_product_schema")
     elif not result["json_ld_present"]:
         # No structured data at all, on a page with nothing transactional to
-        # describe â€” worth reporting, but not at the same severity.
+        # describe — worth reporting, but not at the same severity.
         signals.append("missing_schema_org")
 
     if result["json_ld_present"]:
-        # Only meaningful when structured data exists at all â€” a site with no
+        # Only meaningful when structured data exists at all — a site with no
         # JSON-LD is already reported once, and piling on adds no information.
         if not schema["has_freshness_date"] and not _VISIBLE_FRESHNESS_PATTERN.search(text):
             signals.append("freshness_markers_absent")

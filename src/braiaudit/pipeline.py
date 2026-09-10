@@ -117,6 +117,12 @@ def run_audit(
 
     findings_by_url: dict[str, list[dict[str, Any]]] = {}
     pages_unreachable: list[str] = []
+    # Pages that actually yielded content the readiness checks could run
+    # against — reached *and* not halted. `pages_crawled` counts a blocked
+    # or challenged page, because it was fetched; this does not, because
+    # nothing about the site's content was observable through it. The
+    # difference is what tells the scorer whether it has evidence at all.
+    analysed_urls: set[str] = set()
     render_budget_remaining = options.max_render_pages
     # Exact, not inferred: a page counts as rendered only when the
     # backend actually returned available:true, so a launch failure that
@@ -212,6 +218,10 @@ def run_audit(
         if _HALT_SIGNALS & set(observed["signals"]):
             findings_by_url[url] = page_findings
             continue
+
+        # Past both guards: this page was read as the site's own content, so
+        # every check below runs against real evidence.
+        analysed_urls.add(url)
 
         for name in observed.get("brand_name_candidates") or []:
             if name not in brand_names:
@@ -360,11 +370,39 @@ def run_audit(
         seed = seed_urls[0] if seed_urls else f"https://{site}/"
         findings_by_url.setdefault(seed, []).extend(_diagnose(seed, bundle))
 
+    # --- Site-level pass: did this audit obtain any evidence at all? ------
+    # Emitted once per run, not per page: "no page could be analysed" is a
+    # property of the audit, not of any single URL. Routed through the
+    # ontology like every other conclusion, which is what keeps it a
+    # limitation (unscored, no accusation) rather than a defect — the
+    # decision lives in NO_ANALYSABLE_PAGE_EVIDENCE, not here.
+    if not analysed_urls:
+        # Must be the *canonical* seed: that is the key the crawl loop wrote
+        # under and the spelling recorded in `pages_unreachable`. Attaching
+        # to the raw seed instead would add a second dict entry that no
+        # unreachable list mentions, silently turning pages_crawled 0 into 1.
+        seed = (
+            fetch.canonical_crawl_url(seed_urls[0]) if seed_urls else f"https://{site}/"
+        )
+        attempted = len(findings_by_url) or len(seed_urls)
+        findings_by_url.setdefault(seed, []).extend(
+            _diagnose(
+                seed,
+                {"signals": ["no_analysable_page_evidence"]},
+                evidence_hint=(
+                    f"{attempted} URL(s) attempted, "
+                    f"{len(pages_unreachable)} unreachable; no response was "
+                    "readable as the site's own content."
+                ),
+            )
+        )
+
     pages_crawled = len({u for u in findings_by_url if u not in pages_unreachable})
     return report.assemble_report(
         site=site,
         findings_by_url=findings_by_url,
         pages_crawled=pages_crawled,
+        analysable_pages=len(analysed_urls),
         pages_unreachable=pages_unreachable,
         skills_engaged=engaged,
         crawl_note=stopped_early,
