@@ -184,6 +184,10 @@ def run_audit(
     queued: set[str] = {u for u, _ in frontier}
     allowed_hosts: set[str] = {fetch.site_label(u) for u in seed_urls}
 
+    # At most one apex->www retry per audit, so a www host that fails in turn
+    # ends the attempt instead of starting another.
+    www_fallback_tried = False
+
     started_at = time.monotonic()
     stopped_early = ""
 
@@ -217,6 +221,21 @@ def run_audit(
             # boundary is what stops the crawler wandering onto a third
             # party through an ordinary link.
             allowed_hosts.add(fetch.site_label(observed["final_url"]))
+
+        if depth == 0 and not www_fallback_tried:
+            # The apex could not be read for a reason that is not a refusal,
+            # so try the spelling a browser would have resolved to. See
+            # _www_fallback_url for why 403/429/503 and challenges cannot
+            # reach here. Enqueued at depth 0 because it *is* the seed under
+            # another name: its links must still be depth 1, and observe()
+            # fetches robots.txt per origin, so the www host's own robots
+            # rules are honoured rather than inherited from the apex.
+            candidate = _www_fallback_url(url, observed)
+            if candidate and candidate not in queued:
+                www_fallback_tried = True
+                queued.add(candidate)
+                allowed_hosts.add(fetch.site_label(candidate))
+                frontier.appendleft((candidate, 0))
 
         if observed.get("http_status") is None:
             pages_unreachable.append(url)
@@ -428,6 +447,43 @@ def run_audit(
         organization_legal_name=org_legal_name,
         organization_same_as=org_same_as,
     )
+
+
+def _www_fallback_url(seed_url: str, observed: dict[str, Any]) -> str | None:
+    """The `www.` spelling of an apex seed that could not be read, or None.
+
+    Typing a bare domain into a browser resolves apex-or-www transparently;
+    this audit could not. An apex with no DNS record, or one answering 404,
+    ended the crawl at zero readable pages while the real site sat on `www.`
+    — seen live on two of twenty unseen sites.
+
+    Deliberately narrow on three axes, and each one is the safety argument:
+
+    * **Status.** Only a connection failure or a 404 qualifies. 403, 429 and
+      503 are *deliberate* refusals, as is every anti-bot challenge, and
+      re-asking under a second hostname is circumvention rather than
+      reachability. They are excluded here by status, not by signal, because
+      a bodiless 403 and a bodiless 404 raise the very same halt signal.
+    * **Shape.** Only a bare apex qualifies. `docs.example.com` is a
+      subdomain someone chose, not an apex missing its `www.`, so it is
+      never rewritten — `registrable_domain` is what draws that line, which
+      also makes `titan.co.in` and `example.co.uk` apexes rather than
+      subdomains of a public suffix.
+    * **Direction.** `www.` is prepended, never substituted, so the
+      registrable domain is identical by construction and no rewrite can
+      reach a host the caller did not name.
+    """
+    status = observed.get("http_status")
+    if status is not None and status != 404:
+        return None
+    host = fetch.site_label(seed_url)
+    if host != fetch.registrable_domain(host):
+        return None
+    # A seed that already redirected onto `www.` has been tried: asking for
+    # the same host under its own name would repeat the identical failure.
+    if fetch.site_label(observed.get("final_url") or seed_url) == f"www.{host}":
+        return None
+    return fetch.canonical_crawl_url(f"https://www.{host}/")
 
 
 def pages_crawled_any(

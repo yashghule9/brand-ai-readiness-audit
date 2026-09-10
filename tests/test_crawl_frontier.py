@@ -813,3 +813,428 @@ def test_abstaining_report_still_validates_against_the_schema():
 
     validate(report, "audit-report")
     assert report["summary"]["readiness_score"] is None
+
+
+# ---------------------------------------------------------------------------
+# Apex -> www fallback.
+#
+# Typing a bare domain into a browser resolves apex-or-www transparently; the
+# crawler could not, so an apex with no DNS record (asianpaints.com) or one
+# answering 404 (nykaa.com) ended the audit at zero readable pages while the
+# real site sat on `www.`. The retry is narrow by design: a refusal (403/429/
+# 503, any challenge) is never retried under a second hostname, because that
+# is circumvention rather than reachability. See pipeline._www_fallback_url.
+# ---------------------------------------------------------------------------
+
+_WWW_HOME = (
+    "<html><head><title>Example Tools</title></head><body><main>"
+    '<h1>Example Tools</h1><a href="/pricing">Pricing</a>'
+    "<p>Example Tools is an accounting suite for small businesses based in "
+    "Bengaluru, India. Pricing starts at 499 rupees a month and the product "
+    "has shipped continuously since 2014.</p></main></body></html>"
+)
+
+
+def _www_calls(calls, url: str = "https://www.example.com/") -> list[str]:
+    """Every request made for `url`, so "exactly once" is measurable."""
+    return [c.request.url for c in calls if c.request.url == url]
+
+
+@__import__("responses").activate
+def test_apex_connection_failure_falls_back_to_www_once():
+    """CASE A. asianpaints.com: the apex has no usable DNS record at all, so
+    the existing redirect-based expansion had nothing to expand from."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body=requests.ConnectionError("no A record")
+    )
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET, "https://www.example.com/", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/pricing", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    # The apex stays recorded as unreachable — the fallback adds reach, it does
+    # not paper over what happened.
+    assert report["meta"]["crawl"]["pages_unreachable"] == ["https://example.com/"]
+    # And the crawl actually proceeded on www, including its link graph.
+    assert report["meta"]["crawl"]["pages_crawled"] >= 2
+    assert report["summary"]["readiness_score"] is not None
+    assert len(_www_calls(responses.calls)) == 1
+
+
+@__import__("responses").activate
+def test_apex_404_falls_back_to_www():
+    """CASE B. nykaa.com's shape: the apex resolves but answers 404."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body="", status=404,
+        content_type="text/html",
+    )
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET, "https://www.example.com/", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/pricing", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    assert report["meta"]["crawl"]["pages_crawled"] >= 2
+    assert report["summary"]["readiness_score"] is not None
+    assert len(_www_calls(responses.calls)) == 1
+
+
+@__import__("pytest").mark.parametrize(
+    "status,body",
+    [
+        (403, "<html><body>Forbidden</body></html>"),
+        (503, "<html><body>Service Unavailable</body></html>"),
+        (429, "<html><body>Too Many Requests</body></html>"),
+        (403, "<html><body>Attention Required! | Cloudflare</body></html>"),
+    ],
+    ids=["403", "503", "429", "anti-bot-challenge"],
+)
+def test_deliberate_refusals_never_trigger_the_www_fallback(status, body):
+    """CASES C-F, the safety boundary. 403, 503, 429 and an anti-bot challenge
+    are the site declining to serve a crawler. Asking the same site again under
+    a second hostname would be working around that refusal, so the fallback
+    must not fire — and crucially it must not fire for reasons of *status*,
+    since a bodiless 403 and a bodiless 404 raise the identical
+    http_error_status_blocked halt signal."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    @responses.activate
+    def run():
+        responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+        responses.add(
+            responses.GET, "https://example.com/", body=body, status=status,
+            content_type="text/html",
+        )
+        # Registered but must never be reached.
+        responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+        responses.add(
+            responses.GET, "https://www.example.com/", body=_WWW_HOME, status=200,
+            content_type="text/html",
+        )
+        rep = run_audit(
+            "example.com",
+            options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+        )
+        return rep, _www_calls(responses.calls)
+
+    report, www_hits = run()
+
+    assert www_hits == [], f"HTTP {status} must not be retried on www"
+    # P0 still governs the outcome: nothing analysable, so no score.
+    assert report["summary"]["readiness_score"] is None
+
+
+@__import__("responses").activate
+def test_www_fallback_failure_does_not_retry_further():
+    """CASE G. When www fails too, the audit stops trying: one attempt, both
+    hosts recorded unreachable, and P0's abstention rather than a score."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body=requests.ConnectionError("down")
+    )
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://www.example.com/", body=requests.ConnectionError("down")
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    assert sorted(report["meta"]["crawl"]["pages_unreachable"]) == [
+        "https://example.com/",
+        "https://www.example.com/",
+    ]
+    assert len(_www_calls(responses.calls)) == 1
+    assert report["meta"]["crawl"]["pages_crawled"] == 0
+    assert report["summary"]["readiness_score"] is None
+    assert "No Page Yielded Content This Audit Could Analyse" in {
+        lim["title"] for lim in report["audit_limitations"]
+    }
+
+
+@__import__("responses").activate
+def test_successful_apex_to_www_redirect_adds_no_duplicate_fetch():
+    """CASE H. The ordinary case must be untouched: a 301 onto www already
+    lands on the right host, so the fallback has nothing to add and must not
+    re-request it."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", status=301,
+        headers={"Location": "https://www.example.com/"},
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/pricing", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    # Exactly one request for the www home page: the redirect's own, with no
+    # second one bolted on by the fallback.
+    assert len(_www_calls(responses.calls)) == 1
+    assert report["summary"]["readiness_score"] is not None
+
+
+@__import__("responses").activate
+def test_a_404_after_the_redirect_is_not_retried_on_the_same_host():
+    """The awkward corner of CASE H: the apex 301s to www and *www* is the
+    thing returning 404. The candidate host is then the host already fetched,
+    so retrying would repeat an identical failure."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", status=301,
+        headers={"Location": "https://www.example.com/"},
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/", body="", status=404,
+        content_type="text/html",
+    )
+
+    run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    assert len(_www_calls(responses.calls)) == 1
+
+
+@__import__("responses").activate
+def test_subdomain_seed_is_never_rewritten_to_www():
+    """CASE I. `docs.example.com` is a subdomain someone chose, not an apex
+    missing its `www.`. Rewriting it would audit a different site."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://docs.example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://docs.example.com/", body=requests.ConnectionError("x")
+    )
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://www.example.com/", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "docs.example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    assert _www_calls(responses.calls) == []
+    assert report["meta"]["crawl"]["pages_unreachable"] == ["https://docs.example.com/"]
+    assert report["summary"]["readiness_score"] is None
+
+
+@__import__("responses").activate
+def test_www_robots_disallow_is_respected_not_bypassed():
+    """CASE J. The fallback reaches a new origin, so that origin's robots.txt
+    governs it. observe() fetches robots per origin, so the www host's own
+    rules apply rather than the apex's — and a disallow halts the page."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body=requests.ConnectionError("x")
+    )
+    responses.add(
+        responses.GET,
+        "https://www.example.com/robots.txt",
+        body="User-agent: *\nDisallow: /\n",
+        status=200,
+        content_type="text/plain",
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+    )
+
+    # The disallow is observed and reported, not worked around.
+    assert any("Robots" in f["title"] for f in report["findings"]), [
+        f["title"] for f in report["findings"]
+    ]
+    # Disallowed means not analysed, so P0 abstains rather than scoring it.
+    assert report["summary"]["readiness_score"] is None
+
+
+@__import__("pytest").mark.parametrize(
+    "apex", ["example.co.in", "example.co.uk", "example.gov.in", "example.ac.in"]
+)
+def test_multipart_suffix_apexes_still_fall_back(apex):
+    """CASE K. `example.co.in` is an apex, not a subdomain of the `co.in`
+    public suffix — exactly the distinction registrable_domain() exists to
+    draw, and the one the fallback's apex test depends on."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    @responses.activate
+    def run():
+        responses.add(responses.GET, f"https://{apex}/robots.txt", status=404)
+        responses.add(
+            responses.GET, f"https://{apex}/", body=requests.ConnectionError("x")
+        )
+        responses.add(responses.GET, f"https://www.{apex}/robots.txt", status=404)
+        responses.add(responses.GET, f"https://www.{apex}/sitemap.xml", status=404)
+        responses.add(
+            responses.GET, f"https://www.{apex}/", body=_WWW_HOME, status=200,
+            content_type="text/html",
+        )
+        rep = run_audit(
+            apex, options=AuditOptions(max_pages=3, max_render_pages=0, corroborate=False)
+        )
+        return rep, _www_calls(responses.calls, f"https://www.{apex}/")
+
+    report, hits = run()
+    assert hits == [f"https://www.{apex}/"]
+    assert report["summary"]["readiness_score"] is not None
+
+
+@__import__("responses").activate
+def test_fallback_cannot_widen_scope_to_an_unrelated_domain():
+    """CASE L. `www.` is prepended, never substituted, so the registrable
+    domain is unchanged by construction. A third-party link on the recovered
+    www page is still refused by the frontier."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(
+        responses.GET, "https://example.com/", body=requests.ConnectionError("x")
+    )
+    responses.add(responses.GET, "https://www.example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://www.example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://www.example.com/",
+        body=_WWW_HOME.replace(
+            '<a href="/pricing">Pricing</a>',
+            '<a href="/pricing">Pricing</a><a href="https://evil.test/x">Partner</a>',
+        ),
+        status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET, "https://www.example.com/pricing", body=_WWW_HOME, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(
+            max_pages=5, max_render_pages=0, max_depth=2, corroborate=False
+        ),
+    )
+
+    requested = {c.request.url for c in responses.calls}
+    assert not any("evil.test" in u for u in requested), requested
+    touched = {u for f in report["findings"] for u in f["affected_urls"]}
+    touched |= set(report["meta"]["crawl"]["pages_unreachable"])
+    assert all("example.com" in u for u in touched), touched
+
+
+def test_www_fallback_url_unit_boundaries():
+    """The whole condition table in one place, so the boundary is readable
+    without reconstructing it from five integration tests."""
+    from braiaudit.pipeline import _www_fallback_url
+
+    apex = "https://example.com/"
+    assert _www_fallback_url(apex, {"http_status": None}) == "https://www.example.com/"
+    assert _www_fallback_url(apex, {"http_status": 404}) == "https://www.example.com/"
+
+    # Refusals and successes alike are left alone.
+    for status in (200, 301, 401, 403, 429, 500, 503):
+        assert _www_fallback_url(apex, {"http_status": status}) is None, status
+
+    # Not an apex.
+    assert _www_fallback_url("https://docs.example.com/", {"http_status": 404}) is None
+    assert _www_fallback_url("https://www.example.com/", {"http_status": 404}) is None
+
+    # Multi-part suffixes are apexes.
+    assert (
+        _www_fallback_url("https://titan.co.in/", {"http_status": None})
+        == "https://www.titan.co.in/"
+    )
+    assert (
+        _www_fallback_url("https://iitb.ac.in/", {"http_status": 404})
+        == "https://www.iitb.ac.in/"
+    )
+
+    # Already landed on www via redirect: nothing left to try.
+    assert (
+        _www_fallback_url(
+            apex, {"http_status": 404, "final_url": "https://www.example.com/"}
+        )
+        is None
+    )
