@@ -1,6 +1,6 @@
 # Brand AI Readiness Audit
 
-[![CI](https://github.com/example/brand-ai-readiness-audit/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI](https://github.com/yashghule9/brand-ai-readiness-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/yashghule9/brand-ai-readiness-audit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 
@@ -17,8 +17,11 @@ concrete observed signal, a severity, and a suggested engineering fix.
 
 This repo is two things layered together:
 
-1. **Six `SKILL.md` files** documenting how an AI agent should perform the
+1. **Eight `SKILL.md` files** documenting how an AI agent should perform the
    audit — the spec, in the Claude Agent Skill two-level disclosure format.
+   Seven of them compose the Phase 2 audit; the eighth,
+   `assistant-representation`, is a Phase 3 layer that reads a finished
+   report and never feeds back into it.
 2. **`braiaudit`**, a Python package (`src/braiaudit/`) that actually
    implements the deterministic parts of that spec — so the contracts in
    each `SKILL.md` are enforced by JSON Schema and covered by tests, not
@@ -42,7 +45,7 @@ Opening this repository in Claude Code instead? The skill auto-loads from
 `.claude/skills/` — just ask: *"run a brand AI readiness audit on
 example.com"*.
 
-Run the test suite with `pytest -q` (102 tests, no network required).
+Run the test suite with `pytest -q` (232 tests, no network required).
 
 ## Quickstart
 
@@ -87,30 +90,35 @@ a skills marketplace via `marketplace.json`) and ask:
 
 > "Run a brand AI readiness audit on example.com"
 
-Claude loads the entrypoint skill [`skills/brand-ai-readiness-audit/SKILL.md`](skills/brand-ai-readiness-audit/SKILL.md), sequences the six capability
-skills under `skills/` via its own tool use (WebFetch, a browser tool,
-etc.) instead of the Python pipeline, and returns the same floor-schema
-JSON. Every skill's `SKILL.md` names the exact reference-implementation
+Claude loads the entrypoint skill [`skills/brand-ai-readiness-audit/SKILL.md`](skills/brand-ai-readiness-audit/SKILL.md), sequences the six Phase 2
+capability skills under `skills/` via its own tool use (WebFetch, a browser
+tool, etc.) instead of the Python pipeline, and returns the same
+floor-schema JSON. Every skill's `SKILL.md` names the exact reference-implementation
 module and script it corresponds to, if you want to compare behavior or
 run the deterministic parts directly instead of re-deriving them via
 tool calls.
 
-## The marketplace: seven skills, one entrypoint
+## The marketplace: eight skills, one entrypoint
 
 `marketplace.json` lists every skill and marks exactly one as the entrypoint.
 Each skill folder holds an agentskills.io-compliant `SKILL.md` (frontmatter
 with `name`, `description`, `allowed-tools`, `license`), with detailed
 knowledge pushed to `references/` and executable checks to `scripts/`.
 
+Eight skills in total: the entrypoint, the six Phase 2 capability skills it
+composes into the audit, and one Phase 3 layer that consumes the finished
+report without taking part in producing it.
+
 | Skill | Concern it owns |
 | --- | --- |
-| **`brand-ai-readiness-audit`** *(entrypoint)* | Receives the audit request, enforces preconditions, sequences the six skills below, and emits the single audit report. The only skill that produces the final JSON. |
+| **`brand-ai-readiness-audit`** *(entrypoint)* | Receives the audit request, enforces preconditions, sequences the six Phase 2 skills below, and emits the single audit report. The only skill that produces the final JSON. |
 | `website-observer` | One cheap JS-free HTTP pass: status, headers, `robots.txt` evaluated against every AI answer-engine crawler, `sitemap.xml`, static-HTML metrics, JSON-LD parsing, internal-link extraction. |
 | `crawl-render-audit` | Headless Chromium only where static signals justify it: scroll-driven lazy load, tab/accordion interaction, Shadow DOM, JS navigation traps. Optional — degrades to a declared coverage gap. |
 | `content-cleaner` | Boilerplate and overlay removal, main-content scoring, semantic-structure and question-register analysis, above-the-fold answer density. |
 | `query-guided-discovery` | Whether a target question is answerable at all: link-graph scoring, multi-page fragmentation, orphaned pages. |
 | `failure-diagnostics` | The shared brain. Maps raw signals onto the Web Failure Ontology (`references/ontology.yaml`) to produce named, severity-scored findings. Owns no I/O. |
 | `freshness-corroboration` | Cross-page corroboration, coverage and structural meta-analysis, and final schema-conformant assembly. |
+| `assistant-representation` *(Phase 3)* | A separate consumer layer, downstream of everything above. Reads a **completed** audit report and observes how an assistant represents the brand against the facts the audit already verified. It performs no Phase 2 measurement, contributes no findings, and takes no part in readiness scoring. |
 
 ### How the entrypoint composes them
 
@@ -131,6 +139,28 @@ corroborate**, and the separation is real rather than cosmetic:
   entry with a corroboration ratio.
 - **`crawl-render-audit` is skipped by default**, and its absence is
   reported as an explicit coverage gap rather than passed off as clean.
+- **Phase 3 sits downstream, never upstream.** The flow is
+  `observation → ontology → report`, and only then
+  `completed report → assistant-representation`. The Phase 3 layer reads a
+  finished report; it never reaches back into the ontology, the findings, or
+  the score.
+
+**The evidence boundary.** Scoring and content analysis both require
+evidence that was actually obtained, which is enforced at three points:
+
+- **No evidence, no score.** Readiness scoring needs at least one page that
+  yielded analysable content. If none did, `summary.readiness_score` and
+  every axis score are `null` — an abstention, not a zero and not a pass.
+  Unavailable evidence never reads as a clean result.
+- **Error stubs are not content.** A short error stub or a soft 404 served
+  at `200` is detected and halted before content analysis, so a page that is
+  not the site's own can never generate ordinary content or identity
+  findings. Off-site corroboration likewise runs only over analysable pages.
+- **One seed retry, same domain.** A bare apex seed that is unreachable or
+  returns `404` gets a single `www.` fallback, prepended rather than
+  substituted so the registrable domain is unchanged. Deliberate refusals
+  (`401`/`403`/`429`/`503`, anti-bot challenges) are never retried, and the
+  fallback host's own `robots.txt` governs it.
 
 ## Architecture
 
@@ -141,11 +171,12 @@ brand-ai-readiness-audit/
 ├── pyproject.toml                    # `braiaudit` package definition
 ├── schemas/                          # JSON Schemas for every I/O contract (source of truth)
 ├── src/braiaudit/                    # Reference implementation, one module per skill
-├── tests/                            # pytest suite (102 tests) + HTML fixtures
+├── docs/                             # Phase closeout notes and known limitations
+├── tests/                            # pytest suite (232 tests) + HTML fixtures
 ├── tools/lint_skills.py              # CI-enforced SKILL.md / ontology / marketplace linter
 ├── .github/workflows/ci.yml          # lint + skill-lint + schema-validate + pytest, py3.10–3.13
 └── skills/
-    ├── brand-ai-readiness-audit/     # ENTRYPOINT — composes the six below
+    ├── brand-ai-readiness-audit/     # ENTRYPOINT — composes the six Phase 2 skills below
     │   └── SKILL.md
     ├── website-observer/
     │   ├── SKILL.md                  # Low-overhead HTTP/DOM inspection
@@ -163,9 +194,14 @@ brand-ai-readiness-audit/
     ├── query-guided-discovery/
     │   ├── SKILL.md                  # Multi-page internal link scoring
     │   └── scripts/discover.py
-    └── freshness-corroboration/
-        ├── SKILL.md                  # Audit evidence assembly & JSON output
-        └── scripts/assemble.py
+    ├── freshness-corroboration/
+    │   ├── SKILL.md                  # Audit evidence assembly & JSON output
+    │   └── scripts/assemble.py
+    │
+    └── assistant-representation/     # PHASE 3 — downstream consumer, outside the
+        ├── SKILL.md                  #   audit above: reads a finished report,
+        └── scripts/                  #   emits no findings, never affects the score
+            └── query_representation.py
 ```
 
 Each `SKILL.md` follows the two-level Claude Skill disclosure pattern: a
@@ -260,20 +296,29 @@ Every audit run emits (via `freshness-corroboration` /
 `braiaudit.report.assemble_report`) a JSON document matching
 [`schemas/audit-report.schema.json`](schemas/audit-report.schema.json):
 
+Readiness lives inside `summary`, alongside the counts it is computed from —
+there is no separate top-level `readiness` object. Abridged:
+
 ```json
 {
+  "schema_version": "2.0",
   "site": "example.com",
   "audited_at": "2026-09-05T00:00:00Z",
-  "summary": { "total_findings": 3, "critical": 1, "high": 1, "medium": 1 },
-  "readiness": {
-    "score": 58,
+  "summary": {
+    "total_findings": 3,
+    "critical": 1,
+    "high": 1,
+    "medium": 1,
+    "readiness_score": 58,
     "by_axis": {
-      "visibility":  { "score": 63, "findings": 2 },
-      "staleness":   { "score": 95, "findings": 1 },
-      "engagement":  { "score": 100, "findings": 0 },
-      "identity":    { "score": 100, "findings": 0 }
+      "visibility": { "score": 63, "findings": 2, "evidence_basis": { "modes_fired": 2, "modes_possible": 16 } },
+      "staleness":  { "score": 95, "findings": 1, "evidence_basis": { "modes_fired": 1, "modes_possible": 7 } },
+      "engagement": { "score": 100, "findings": 0, "evidence_basis": { "modes_fired": 0, "modes_possible": 8 } },
+      "identity":   { "score": 100, "findings": 0, "evidence_basis": { "modes_fired": 0, "modes_possible": 7 } }
     },
-    "formula": "100 minus 25 per critical, 12 per high, 5 per medium and 2 per low finding, floored at 0. Proactive suggestions never affect the score."
+    "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes) ...",
+    "headline": "3 issue(s), 1 of them critical, were found across 5 page(s) of example.com...",
+    "top_priorities": [ { "ref": "F-001", "priority": "critical", "summary": "...", "type": "finding" } ]
   },
   "findings": [
     {
@@ -281,24 +326,36 @@ Every audit run emits (via `freshness-corroboration` /
       "title": "Robots.txt Blocks AI Answer-Engine Crawlers",
       "severity": "critical",
       "axis": "visibility",
+      "category": "compliance_and_access",
       "evidence": "robots.txt disallows 2 AI crawler(s): ClaudeBot, GPTBot, while still allowing Bingbot, Googlebot (confirmed on 1/1 page(s) attempted)",
       "suggested_action": { "summary": "...", "priority": "critical" },
       "affected_urls": ["https://example.com/"],
-      "category": "compliance_and_access"
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
     }
   ],
-  "suggested_actions": [
-    { "id": "A-001", "priority": "critical", "axis": "visibility",
-      "summary": "Remove or narrow the Disallow rules for GPTBot and ClaudeBot...",
-      "rationale": "Addresses F-001: Robots.txt Blocks AI Answer-Engine Crawlers.",
-      "derived_from": "F-001" },
-    { "id": "A-004", "priority": "high", "axis": "staleness",
+  "audit_limitations": [
+    { "title": "Render-Dependent Checks Could Not Be Verified", "detail": "...", "resolution": "..." }
+  ],
+  "opportunities": [
+    { "id": "O-001", "priority": "high", "axis": "staleness",
       "summary": "Add dateModified and datePublished to the JSON-LD on every page whose facts change...",
-      "rationale": "Without a machine-readable date, a 2019 snapshot and a 2024 page look equally current...",
-      "derived_from": "proactive" }
+      "rationale": "Without a machine-readable date, a 2019 snapshot and a 2024 page look equally current..." }
   ]
 }
 ```
+
+**`summary.readiness_score` may be `null`, and a consumer must handle it.**
+`null` means the audit obtained no analysable page evidence to score from —
+every URL was unreachable, or every response was a block, a challenge or an
+error stub. Each entry in `by_axis` carries `"score": null` in the same
+situation, and `audit_limitations` says why. This is an abstention, not a
+zero: a site that could not be read has *not* been assessed and does not
+receive an ordinary readiness score in either direction. Treating `null` as
+`0` would invent a failing verdict; treating it as a pass would invent a
+clean one.
 
 `meta` is additive — a consumer that only reads `site` / `summary` /
 `findings` keeps working unmodified. It's what lets a reader distinguish
@@ -309,7 +366,7 @@ above) — the same findings array either way, but a very different claim.
 ## Testing & quality
 
 ```bash
-pytest -q                                    # 102 tests, no network required
+pytest -q                                    # 232 tests, no network required
 ruff check src tests tools                   # lint
 python tools/lint_skills.py                  # SKILL.md / ontology / marketplace lint
 braiaudit validate marketplace.json --schema marketplace
