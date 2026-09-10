@@ -6,6 +6,180 @@ All notable changes to this project are documented here. Format follows
 (`marketplace.json`'s `marketplace_version` tracks the *skill definitions*
 separately and moves more slowly).
 
+## [0.9.1] — 2026-09-10
+
+### Fixed
+
+- **A 403/503 response with a real, non-empty, unrecognized body was
+  analysed as the site's actual content.** The existing empty-body handling
+  (`HTTP_ERROR_STATUS_BLOCKED`) only fires when a 4xx/5xx body is empty or
+  non-HTML; a small but real HTML body — a block page worded outside the
+  known anti-bot fingerprint list, live-observed against infosys.com and
+  meesho.com — fell through unchanged into full content analysis, producing
+  findings that described the block page rather than the site. Scoped
+  narrowly to status 403/503 (the same pair the anti-bot fingerprint check
+  already treats specially) with real HTML content and no matching
+  fingerprint: the response body is no longer analysed, and a new signal,
+  `http_error_status_unconfirmed`, reports the ambiguity as an unscored
+  `kind: limitation` (`HTTP_ERROR_STATUS_UNCONFIRMED`) rather than guessing
+  "blocked" or "genuine" in either direction. An ordinary 404 with a real
+  body — the common case for a dead link found mid-crawl — is untouched.
+  Verified live: infosys.com and meesho.com go from several fabricated
+  content findings each to zero findings plus one honest limitation.
+
+### Note on documentation
+
+This entry is the first CHANGELOG update since 0.5.0, though `pyproject.toml`
+had already reached 0.9.0 — the intervening work (a scoring-model rework to
+per-axis percentages, twelve new staleness/engagement/identity detectors,
+and Phase 2's off-site corroboration module) was implemented but never
+written up here. See `docs/PHASE2_BASELINE.md` for the closeout state as of
+this entry; backfilling the missing 0.6.0–0.9.0 entries from memory was
+judged too likely to be inaccurate and was not attempted.
+
+## [0.5.0] — 2026-09-05
+
+### Added
+
+- **Five failure modes covering the staleness, identity and engagement
+  axes**, which until now had almost no coverage — the audit could only
+  really answer "can a machine read this page?".
+  - `NO_FRESHNESS_SIGNAL` — structured data with no `dateModified` /
+    `datePublished` and no visible "last updated" marker, so nothing
+    distinguishes a current page from a years-old snapshot of the same
+    claims elsewhere on the web.
+  - `STALE_STRUCTURED_DATA_DESYNC` — JSON-LD asserting a brand string
+    (slogan, legal name, alternate name) that appears nowhere in the text a
+    human reads. The classic rebrand desync: the visible site was updated
+    and the markup behind it was not, and the mismatch is invisible to
+    anyone reviewing the page in a browser.
+  - `UNCLAIMED_ENTITY_IDENTITY` — `Organization` markup with no `sameAs`
+    links, so nothing connects the site to an entity record anywhere else
+    and a shared brand name resolves to whichever entity is better
+    corroborated.
+  - `QUERY_REGISTER_MISMATCH` — headings that never take the shape of a
+    question a person would actually ask, so the page does not align with
+    how users prompt assistants.
+  - `ANSWER_BURIED_BELOW_FOLD` — concrete facts (prices, sizes, specs)
+    present on the page but absent from its opening text.
+- `website-observer` now parses JSON-LD properly — `@graph` flattened,
+  malformed blocks skipped rather than raised — and reports `schema_types`
+  and `structured_data_desync` alongside the existing presence flag.
+- `content-cleaner` reports `structure.question_shaped_headings`.
+
+### Changed
+
+- Ontology to 1.5: 23 failure modes across all four axes (visibility 15,
+  staleness 3, engagement 3, identity 2) plus 10 proactive opportunities.
+
+### Not built (deliberately)
+
+- **Off-site corroboration.** Measuring what third-party surfaces say about
+  a brand — the root cause behind both the visibility and staleness cases —
+  requires fetching pages on Reddit, Quora and review sites that actively
+  challenge automated traffic. This auditor halts on an anti-bot challenge
+  by design and does not route around one, so such a pass would return
+  partial data unpredictably and make a run non-reproducible. The
+  corresponding work is surfaced as advice instead, via the
+  `THIRD_PARTY_CORROBORATION`, `ENTITY_DISAMBIGUATION_RECORD` and
+  `ASSISTANT_ANSWER_PANEL` opportunities, which state plainly that the
+  brand must sample assistant answers directly — no on-site change can
+  measure that outcome.
+
+## [0.4.0] — 2026-09-05
+
+### Added
+
+- **The report now has two substantive halves.** Alongside `findings`, every
+  audit emits a top-level `suggested_actions` array: what to change,
+  prioritised critical -> low, each entry carrying `derived_from` — either
+  the finding id it fixes (`F-002`) or the literal `"proactive"`.
+- **Proactive recommendations** (`opportunities` in `ontology.yaml`), emitted
+  independently of whether any defect fired, so a site with zero findings
+  still receives useful advice — answer-first content blocks, query-shaped
+  landing pages, explicit freshness markers, a dated canonical-facts page,
+  discontinued-product succession, third-party corroboration, a claimed
+  entity record, AI-referral landing experience and measurement, and a
+  standing assistant-answer probe panel. Each declares `suppressed_by`: when
+  a failure mode that already covers the same ground fired, the opportunity
+  is dropped rather than repeating the finding's own remediation.
+  Opportunities carry no evidence and never affect the score — they are
+  advice, not observations about the site.
+- **`axis` on every failure mode and finding** — `visibility`, `staleness`,
+  `engagement` or `identity` — so the report can be read against the
+  problems a brand actually reports rather than the auditor's internal
+  categories.
+- **A headline readiness score** (`readiness.score`, 0-100) with a per-axis
+  breakdown, and `readiness.formula` stating the rule in words so the number
+  is reproducible by hand rather than a black box. Only findings score;
+  proactive advice never penalises a brand.
+- **`remediation` on all 18 failure modes**, written for the site owner.
+  Previously every suggested action was assembled from `recovery_strategy`
+  and `recommended_tool` — which name *the auditor's* next step — so a
+  brand's engineer read "Recommended remediation path: crawl-render-audit
+  (tool: playwright)" and learned nothing about what to change. Those fields
+  remain, for the pipeline; they are no longer surfaced as advice.
+- Two more meta-analysis checks: `sequential_action_ids`, and
+  `every_finding_has_an_action` — no problem is reported without telling the
+  reader what to do about it.
+
+## [0.3.0] — 2026-09-05
+
+### Added
+
+- **AI answer-engine crawler access matrix.** `website-observer` now
+  evaluates `robots.txt` against the crawlers that actually feed AI
+  assistants — `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `ClaudeBot`,
+  `anthropic-ai`, `PerplexityBot`, `Google-Extended`, `Applebot-Extended`
+  and `CCBot` — not just this auditor's own user-agent, and emits
+  `ai_crawler_robots_disallow` → the new `critical` failure mode
+  `AI_CRAWLER_ROBOTS_DISALLOW`. The check reuses the already-parsed
+  `robots.txt`, so covering ten agents costs zero extra requests. Evidence
+  names both the blocked AI crawlers and any classic search crawlers still
+  allowed, because "allows Googlebot, disallows GPTBot" is the single most
+  direct cause of a brand being absent from AI answers — and is usually
+  unintentional.
+- **A real crawl frontier.** `run_audit` now walks the site breadth-first
+  from the seed URLs to `--max-depth` (default 2), capped by `--max-pages`.
+  Breadth-first so every depth-1 page is audited before any budget goes to
+  depth 2 — depth-first would spend the whole budget descending one blog
+  subtree and never reach `/pricing`. With `target_queries` supplied, newly
+  discovered links are ordered by lexical relevance to those queries so a
+  limited budget goes to the pages most likely to answer them.
+- `remediation:` as an optional per-failure-mode field in `ontology.yaml`,
+  used for a finding's `suggested_action` when present. `recovery_strategy`
+  / `recommended_tool` describe the *auditor's* next step ("crawl-render-
+  audit", "playwright") and are useless as advice to a site owner; the new
+  field carries what the brand's engineer should actually change. Populated
+  for `AI_CRAWLER_ROBOTS_DISALLOW`; the remaining modes fall back to the
+  previous text until written up.
+
+### Fixed
+
+- **Internal links were only ever discovered by the render backend.**
+  `website-observer` parsed every `<a href>` to compute `link_count` and
+  then discarded the URLs, so `internal_links` reached
+  `query-guided-discovery` empty on any run without Playwright installed.
+  That silently disabled fragmentation scoring, orphaned-page detection and
+  `high_internal_link_density` — while `meta.coverage` still counted
+  `ORPHANED_PAGE_ISOLATION` as *evaluated*, reporting a check that could not
+  possibly fire as clean. Exactly the false-clean the coverage block exists
+  to prevent. `observe()` now returns normalised, same-host
+  `internal_links`, and the pipeline unions them with any render-discovered
+  links.
+- **Every finding's evidence embedded the entire page source.**
+  `pipeline._diagnose` copied all scalar fields from a signal bundle into
+  the finding's metrics, including `raw_html` and `clean_text` — producing
+  multi-hundred-kilobyte evidence strings. It was masked in the final report
+  only because cross-page corroboration overwrites evidence for most
+  categories; `compliance_and_access` findings pass their raw evidence
+  through untouched, so the new AI-crawler finding would have shipped the
+  whole page with it. Bulk fields are now excluded and metric strings capped.
+- URL spellings are normalised for crawling (`canonical_crawl_url`):
+  fragments stripped and redundant trailing slashes collapsed, so
+  `/pricing`, `/pricing/` and `/pricing#plans` are one page in the frontier
+  and the link graph rather than three.
+
 ## [0.2.0] — 2026-09-03
 
 ### Added

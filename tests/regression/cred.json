@@ -1,0 +1,672 @@
+{
+  "schema_version": "2.0",
+  "site": "cred.club",
+  "audited_at": "2026-09-09T20:57:12Z",
+  "site_info": {
+    "domain": "cred.club",
+    "url": "https://cred.club/",
+    "brand_name_candidates": [
+      "CRED. not everyone gets it.",
+      "about us - CRED",
+      "CRED - pay your credit card bills & earn rewards",
+      "calculators on CRED",
+      "Meet the CRED IndusInd Bank Rupay Credit Card",
+      "CRED cash+ : borrow against your mutual funds",
+      "anti discrimination and equal opportunity policy - CRED",
+      "CRED garage",
+      "investor relations - CRED",
+      "other disclosures | CRED",
+      "404: This page could not be found",
+      "CRED money",
+      "switch to CRED UPI",
+      "privacy policy | CRED"
+    ],
+    "declared_brand_name": "Meet the CRED IndusInd Bank Rupay Credit Card",
+    "organization_legal_name": "",
+    "organization_same_as": []
+  },
+  "provenance": [],
+  "summary": {
+    "total_findings": 16,
+    "critical": 0,
+    "high": 3,
+    "medium": 9,
+    "readiness_score": 71,
+    "by_axis": {
+      "visibility": {
+        "score": 78,
+        "findings": 5,
+        "evidence_basis": {
+          "modes_fired": 5,
+          "modes_possible": 16
+        }
+      },
+      "staleness": {
+        "score": 58,
+        "findings": 4,
+        "evidence_basis": {
+          "modes_fired": 4,
+          "modes_possible": 7
+        }
+      },
+      "engagement": {
+        "score": 45,
+        "findings": 4,
+        "evidence_basis": {
+          "modes_fired": 4,
+          "modes_possible": 8
+        }
+      },
+      "identity": {
+        "score": 72,
+        "findings": 3,
+        "evidence_basis": {
+          "modes_fired": 3,
+          "modes_possible": 7
+        }
+      }
+    },
+    "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. Axes are scored against themselves and never normalised against each other. null means nothing on that axis could be evaluated. Adding failure modes changes an axis's denominator, so scores are comparable only between runs with the same schema_version. Opportunities and audit limitations never affect the score.",
+    "headline": "16 issue(s) were found across 15 page(s) of cred.club, most of them on visibility (5 of 16). 1 check(s) could not be completed.",
+    "top_priorities": [
+      {
+        "ref": "F-001",
+        "priority": "high",
+        "summary": "JavaScript-Heavy Rendering Hides Content From Static Crawlers",
+        "type": "finding"
+      },
+      {
+        "ref": "F-002",
+        "priority": "high",
+        "summary": "No Freshness Signal Distinguishes Current Facts From Old Ones",
+        "type": "finding"
+      },
+      {
+        "ref": "F-003",
+        "priority": "high",
+        "summary": "Pricing Pages Lack Product/Offer Structured Data",
+        "type": "finding"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "JavaScript-Heavy Rendering Hides Content From Static Crawlers",
+      "severity": "high",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://cred.club/cash-plus.",
+      "suggested_action": {
+        "summary": "Server-render or statically pre-render the primary content templates so the first HTTP response already contains the product, pricing and support text \u2014 Next.js getServerSideProps/ISR, Nuxt SSR, or a prerender layer that serves fully-rendered HTML to crawler user-agents. Verify by fetching the page with curl and grepping for your own headline text: if it is not in the raw response, an assistant that does not execute JavaScript will never see it.",
+        "priority": "high"
+      },
+      "affected_urls": [
+        "https://cred.club/cash-plus",
+        "https://cred.club/money"
+      ],
+      "category": "rendering_and_execution",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-002",
+      "title": "No Freshness Signal Distinguishes Current Facts From Old Ones",
+      "severity": "high",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://cred.club/calculators.",
+      "suggested_action": {
+        "summary": "Add dateModified and datePublished to the JSON-LD of every page whose facts change, and show a visible \"last updated\" line for the human reader. Keep sitemap lastmod values accurate on each edit, and ping IndexNow on publish so crawlers are alerted rather than waiting for their next scheduled pass.",
+        "priority": "high"
+      },
+      "affected_urls": [
+        "https://cred.club/calculators"
+      ],
+      "category": "semantic_deficit",
+      "axis": "staleness",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-003",
+      "title": "Pricing Pages Lack Product/Offer Structured Data",
+      "severity": "high",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://cred.club/legal/other-disclosures.",
+      "suggested_action": {
+        "summary": "Add Product and Offer JSON-LD to the templates that quote prices: name, sku, image, description, plus offers with price, priceCurrency, availability and priceValidUntil. priceValidUntil matters more than it looks \u2014 it tells a retrieval pipeline when to stop trusting the number instead of quoting a stale one indefinitely.",
+        "priority": "high"
+      },
+      "affected_urls": [
+        "https://cred.club/legal/other-disclosures"
+      ],
+      "category": "semantic_deficit",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-004",
+      "title": "Lazy-Loaded Content Requires Scroll Interaction To Appear",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Put below-the-fold text in the initial HTML and reserve lazy loading for images via native loading=\"lazy\", rather than injecting text nodes on scroll. Where an intersection-observer pattern must stay, ship the same content in the server response (or a <noscript> block) so a non-scrolling crawler still reads it.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/legal/other-disclosures"
+      ],
+      "category": "rendering_and_execution",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-005",
+      "title": "Concrete Answers Are Buried Below The Opening Content",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 3/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Lead with the answer. Put price, availability and key specifications in the opening block of the page, above the fold and outside any accordion, then let the marketing narrative follow. A visitor who can confirm the fact in seconds stays; one who has to search again leaves.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/calculators",
+        "https://cred.club/privacy"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-006",
+      "title": "Long Content Has Almost No Heading Structure",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Break long content with headings that name what each section answers, roughly one every few hundred words. This serves the scanning reader and the chunker at once \u2014 both are looking for the same boundaries.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/privacy"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-007",
+      "title": "Page Does Not State What It Is",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 12/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Give every page exactly one <h1> naming what the page is about, and a <title> that identifies both the page and the brand. Templates that render the site name alone in both places leave every page looking identical to a machine.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/about",
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/customer-care",
+        "https://cred.club/equal-opportunity",
+        "https://cred.club/garage",
+        "https://cred.club/investor-relations",
+        "https://cred.club/legal/other-disclosures",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi",
+        "https://cred.club/privacy"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-008",
+      "title": "Content Is Not Written In The Register Users Ask Questions In",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 4/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Add headings phrased the way customers ask: \"How much does the <product> cost?\", \"Which <product> is best for <use case>?\". Mirror real query phrasing rather than internal product naming, and answer immediately beneath each heading so the pairing is extractable as a unit.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/account/view/transactions",
+        "https://cred.club/legal/other-disclosures",
+        "https://cred.club/mint"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-009",
+      "title": "Sitemap Change Dates Carry No Information",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 15/15 exhibit this failure mode.",
+      "suggested_action": {
+        "summary": "Emit a per-URL <lastmod> reflecting when that page's content last changed, not when the sitemap was regenerated. Identical dates across every entry are worse than none, because they look informative and are not.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/about",
+        "https://cred.club/account/view/transactions",
+        "https://cred.club/calculators",
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/customer-care",
+        "https://cred.club/equal-opportunity",
+        "https://cred.club/garage",
+        "https://cred.club/investor-relations",
+        "https://cred.club/legal/other-disclosures",
+        "https://cred.club/mint",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi",
+        "https://cred.club/privacy"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "staleness",
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-010",
+      "title": "No Machine-Readable Contact Or Location Details",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 13/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Publish contact details in markup, not only in an image or a contact form: a tel/mailto link, a postal address, or ContactPoint structured data. Keep the same details across every directory listing so the signature is consistent wherever it is encountered.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/about",
+        "https://cred.club/account/view/transactions",
+        "https://cred.club/calculators",
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/customer-care",
+        "https://cred.club/garage",
+        "https://cred.club/investor-relations",
+        "https://cred.club/mint",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi",
+        "https://cred.club/privacy"
+      ],
+      "category": "semantic_deficit",
+      "axis": "identity",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-011",
+      "title": "No Public Entity Record Corroborates This Brand",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Establish an independent, structured record of the brand and link it both ways: claim a Wikidata entity with the official domain as its website, and add the matching sameAs links to the Organization schema on the site. Keep the brand descriptor identical across every directory and listing so the entity signature is consistent wherever it is encountered. Notability rules govern encyclopaedic articles, but a structured entity record does not require one.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/"
+      ],
+      "category": "semantic_deficit",
+      "axis": "identity",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-012",
+      "title": "No Schema.org / JSON-LD Structured Data Available",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 13/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Add JSON-LD to the primary templates: Organization (name, logo, foundingDate, sameAs) sitewide, Product plus Offer (name, sku, price, priceCurrency, availability, priceValidUntil) on product pages, FAQPage on support content, and BreadcrumbList for hierarchy. Structured triples let a retrieval pipeline bind a number to \"price\" rather than inferring it from prose, which is where wrong prices in AI answers come from.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/about",
+        "https://cred.club/account/view/transactions",
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/customer-care",
+        "https://cred.club/equal-opportunity",
+        "https://cred.club/garage",
+        "https://cred.club/investor-relations",
+        "https://cred.club/mint",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi",
+        "https://cred.club/privacy"
+      ],
+      "category": "semantic_deficit",
+      "axis": "visibility",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-013",
+      "title": "Deep Page Offers No Breadcrumb Trail",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://cred.club/account/view/transactions.",
+      "suggested_action": {
+        "summary": "Add a breadcrumb trail to templates below the top level, and mark it up as BreadcrumbList. It orients direct arrivals and gives extraction a cheap, reliable read on site hierarchy.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://cred.club/account/view/transactions",
+        "https://cred.club/legal/other-disclosures"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-014",
+      "title": "Footer Copyright Year Is Out Of Date",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 7/15 exhibit this failure mode, e.g. https://cred.club/.",
+      "suggested_action": {
+        "summary": "Render the copyright year from the server clock rather than hardcoding it. It is a small thing that a reader and a crawler both read as a proxy for whether anyone is still maintaining the site.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/about",
+        "https://cred.club/calculators",
+        "https://cred.club/equal-opportunity",
+        "https://cred.club/investor-relations",
+        "https://cred.club/legal/other-disclosures",
+        "https://cred.club/privacy"
+      ],
+      "category": "semantic_deficit",
+      "axis": "staleness",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-015",
+      "title": "Last-Modified Header Is Missing Or Long Out Of Date",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 15/15 exhibit this failure mode.",
+      "suggested_action": {
+        "summary": "Emit an accurate Last-Modified header for HTML responses, driven by when the content actually changed rather than by deploy time. If a CDN strips or rewrites it, fix that at the edge configuration.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://cred.club/",
+        "https://cred.club/about",
+        "https://cred.club/account/view/transactions",
+        "https://cred.club/calculators",
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/customer-care",
+        "https://cred.club/equal-opportunity",
+        "https://cred.club/garage",
+        "https://cred.club/investor-relations",
+        "https://cred.club/legal/other-disclosures",
+        "https://cred.club/mint",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi",
+        "https://cred.club/privacy"
+      ],
+      "category": "semantic_deficit",
+      "axis": "staleness",
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-016",
+      "title": "Missing Canonical Tags Create Duplicate-Content Ambiguity",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 5/15 exhibit this failure mode, e.g. https://cred.club/card.",
+      "suggested_action": {
+        "summary": "Emit a self-referencing canonical link element on every page, and point duplicate variants (tracking parameters, print views, regional aliases) at a single canonical target. Without it, near-identical URLs compete and citations get split across several spellings of the same page.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/garage",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi"
+      ],
+      "category": "semantic_deficit",
+      "axis": "identity",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    }
+  ],
+  "audit_limitations": [
+    {
+      "title": "Render-Dependent Checks Could Not Be Verified",
+      "detail": "Could not be verified on 10 of 15 page(s) crawled.",
+      "resolution": "No site change is implied by this finding \u2014 it records what this audit could not verify. Re-run with the render backend installed (pip install braiaudit[render] and playwright install chromium) to confirm or clear the render-dependent checks.",
+      "affected_urls": [
+        "https://cred.club/calculators",
+        "https://cred.club/card",
+        "https://cred.club/cash-plus",
+        "https://cred.club/customer-care",
+        "https://cred.club/equal-opportunity",
+        "https://cred.club/garage",
+        "https://cred.club/investor-relations",
+        "https://cred.club/mint",
+        "https://cred.club/money",
+        "https://cred.club/pay-via-upi"
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "priority": "high",
+      "axis": "staleness",
+      "summary": "Add dateModified and datePublished to the JSON-LD on every page whose facts change, show a visible \"last updated\" line, and keep sitemap lastmod values accurate on each edit. Ping IndexNow (which Bing, and through it Copilot, consumes) on publish so updates are pulled promptly instead of waiting for the next crawl.",
+      "rationale": "Without a machine-readable date, a 2019 snapshot and a 2024 page look equally current to a retrieval pipeline, so the older and more-corroborated version tends to win. Freshness has to be stated, not implied by a redesign.",
+      "id": "O-001"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Audit and correct listings on the marketplaces and review sites that rank for your category queries, and make it easy for independent reviewers to be accurate \u2014 publish a press kit with spec sheets and current pricing. This is a corroboration play, not advertising: the goal is that facts about you exist, consistently, off your own domain.",
+      "rationale": "For category queries, live retrieval is dominated by marketplaces, review sites and forum threads rather than brand-owned domains. If a brand is absent or misdescribed on those surfaces, its own site can be flawless and still never enter the candidate set.",
+      "id": "O-002"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Keep a fixed panel of realistic prompts \u2014 category questions, direct brand questions, price and fact probes \u2014 and run them across the assistants your customers use on a regular cadence. Log whether the brand is named, whether it is cited with a source link, which URL is cited, and which competitors appear instead. Track share-of-voice and fact-accuracy over time; these are the KPIs the rest of this report is upstream of.",
+      "rationale": "Neither this audit nor any on-site change can tell you what an assistant actually says about the brand. That has to be sampled directly, and it is the only metric that measures the outcome rather than a proxy for it.",
+      "id": "O-003"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Publish content shaped like the questions being asked: category and comparison pages, \"best X for Y\" guides, and an FAQ page whose headings are verbatim user questions. Mirror real query phrasing in titles and H2s rather than internal product naming.",
+      "rationale": "People ask assistants comparative, price-bounded, colloquial questions (\"best running shoes under 6000 in India\"), not brand questions. Pages written only in brand vocabulary lose the retrieval race to third-party listicles that mirror the query's own phrasing.",
+      "id": "O-004"
+    },
+    {
+      "priority": "medium",
+      "axis": "engagement",
+      "summary": "Make sure the fact-dense deep page exists and is the natural citation target, then surface price, availability and key specs above the fold on it. Detect assistant referrers (document.referrer, UTM tags) and lead with the likely intent rather than the standard homepage pitch.",
+      "rationale": "A visitor arriving from an assistant already knows what they want and arrives mid-task. Landing them on a generic homepage discards the context that brought them and forces them to search again \u2014 the commonest cause of an immediate bounce from AI referral traffic.",
+      "id": "O-005"
+    },
+    {
+      "priority": "medium",
+      "axis": "engagement",
+      "summary": "Segment analytics by referrer class so AI-assistant arrivals are measurable separately from organic search and direct, and track bounce rate, scroll depth and conversion for that cohort. Watch server logs for the AI crawler user-agents too, to confirm they are actually fetching and how often.",
+      "rationale": "This audit observes the site from outside and cannot see who arrives or what they do next. Without first-party segmentation there is no way to tell whether engagement fixes worked.",
+      "id": "O-006"
+    },
+    {
+      "priority": "medium",
+      "axis": "identity",
+      "summary": "Claim a Wikidata entity with sameAs links to the official domain and verified profiles, and add disambiguating context to the on-site Organization schema: industry, foundingDate, registered address. Keep the brand descriptor identical across every directory and listing so the entity signature is consistent wherever it appears.",
+      "rationale": "A brand name shared with a larger entity (an airline, a mythological figure, an unrelated company) loses the disambiguation contest by default \u2014 the assistant resolves the name to whichever entity has stronger corroboration, and the brand vanishes from the answer even though its name was processed.",
+      "id": "O-007"
+    },
+    {
+      "priority": "medium",
+      "axis": "staleness",
+      "summary": "301 each retired product URL to its successor, and state the succession in body text on the destination page. Keep the sentence explicit enough to be quoted: \"<retired model> has been discontinued and is replaced by <successor>.\"",
+      "rationale": "Deleting a discontinued product's page destroys the update relationship between old and new facts. Crawlers see a dead end and keep trusting cached third-party copies of the old listing.",
+      "id": "O-008"
+    },
+    {
+      "priority": "medium",
+      "axis": "staleness",
+      "summary": "Publish a Press/Facts page carrying the current tagline, logo, founding date, leadership, product line and pricing, each with the date it took effect and the prior value it replaced. Link it from the footer so it is reachable from every page.",
+      "rationale": "Corrections propagate only if there is something quotable to propagate. A single dated page stating current brand facts gives every downstream surface \u2014 retrieval pipelines, journalists, directory editors \u2014 one authoritative thing to cite.",
+      "id": "O-009"
+    }
+  ],
+  "meta": {
+    "coverage": {
+      "ontology_version": "2.3",
+      "skills_engaged": [
+        "content-cleaner",
+        "crawl-render-audit",
+        "offsite-corroboration",
+        "pipeline",
+        "query-guided-discovery",
+        "query-guided-discovery:target_queries",
+        "website-observer"
+      ],
+      "categories": {
+        "rendering_and_execution": {
+          "label": "Rendering & Execution Failures",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "content_noise": {
+          "label": "Content Noise & Layout Distortions",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "discovery_and_pathing": {
+          "label": "Crawl Discovery & Pathing Failures",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "semantic_deficit": {
+          "label": "Semantic Deficit & Data Integrity",
+          "total_failure_modes": 16,
+          "evaluated_failure_modes": 16,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "compliance_and_access": {
+          "label": "Compliance & Access Governance",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        }
+      },
+      "overall_coverage_pct": 100.0
+    },
+    "validation": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "no_duplicate_titles",
+          "passed": true,
+          "means": "every finding is for a distinct concept, not a re-report of another"
+        },
+        {
+          "name": "no_duplicate_ids",
+          "passed": true,
+          "means": "every finding has a unique id"
+        },
+        {
+          "name": "sequential_ids",
+          "passed": true,
+          "means": "ids are sequential F-001, F-002, ... with no gaps"
+        },
+        {
+          "name": "evidence_non_empty",
+          "passed": true,
+          "means": "every finding cites concrete, non-empty evidence"
+        },
+        {
+          "name": "severity_sorted",
+          "passed": true,
+          "means": "findings are ordered critical -> high -> medium -> low"
+        },
+        {
+          "name": "summary_matches_findings",
+          "passed": true,
+          "means": "the summary block's counts are recomputable from the findings array"
+        },
+        {
+          "name": "sequential_opportunity_ids",
+          "passed": true,
+          "means": "opportunity ids are sequential O-001, O-002, ... with no gaps"
+        },
+        {
+          "name": "every_finding_has_an_action",
+          "passed": true,
+          "means": "no problem is reported without telling the reader what to do about it"
+        }
+      ],
+      "notes": [
+        "2 findings affect exactly the same page(s) (15 URLs) and may share a root cause rather than being independent problems: Sitemap Change Dates Carry No Information; Last-Modified Header Is Missing Or Long Out Of Date."
+      ]
+    },
+    "crawl": {
+      "pages_crawled": 15,
+      "pages_unreachable": [],
+      "stopped_early": false,
+      "note": "",
+      "render_triggered": true,
+      "pages_rendered": 3
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "site": "www.isro.gov.in",
+  "mode": "blind",
+  "generated_at": "2026-09-09T20:56:56Z",
+  "verified_facts": {
+    "official_domain": {
+      "value": "www.isro.gov.in",
+      "status": "verified",
+      "source": "phase2_report.site_info.domain"
+    },
+    "brand_name": {
+      "value": "ISRO",
+      "status": "verified",
+      "source": "caller_supplied"
+    },
+    "legal_name": {
+      "value": null,
+      "status": "unavailable",
+      "source": "the site declares no legalName in its Organization JSON-LD"
+    },
+    "location": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "products": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "operator": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    }
+  },
+  "questions": [
+    {
+      "id": "brand_identity",
+      "question": "What is ISRO?",
+      "answer": "ISRO is the Indian Space Research Organisation, India's national space agency. It was established in 1969 and operates under the Department of Space of the Government of India.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_offering",
+      "question": "What does ISRO offer?",
+      "answer": "ISRO is a government agency rather than a commercial vendor. It carries out space research, satellite development and launch, Earth observation, satellite navigation through NavIC, and planetary exploration. Commercial launch services are offered through NewSpace India Limited.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_products",
+      "question": "What products or services is ISRO known for?",
+      "answer": "ISRO is best known for the Chandrayaan lunar missions, including Chandrayaan-3's landing near the lunar south pole in 2023, the Mars Orbiter Mission known as Mangalyaan, the PSLV and LVM3 launch vehicles, the Aditya-L1 solar mission, and for conducting missions at notably low cost.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_location",
+      "question": "Where is ISRO based?",
+      "answer": "ISRO is headquartered in Bengaluru, Karnataka. Major centres include the Vikram Sarabhai Space Centre in Thiruvananthapuram and the Satish Dhawan Space Centre at Sriharikota.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_domain",
+      "question": "What is ISRO's official website?",
+      "answer": "ISRO's official website is isro.gov.in.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "verified_domain_matched"
+        ],
+        "basis": "deterministic",
+        "notes": "A verified value was compared against the answer and agreed: verified_domain_matched."
+      }
+    },
+    {
+      "id": "brand_operator",
+      "question": "Who owns or operates ISRO?",
+      "answer": "ISRO is owned and operated by the Government of India through the Department of Space, which reports to the Prime Minister. Its chairman is appointed by the government; V. Narayanan took over the role from S. Somanath in early 2025.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    }
+  ],
+  "summary": {
+    "questions_asked": 6,
+    "questions_evaluated": 6,
+    "not_evaluated": 0,
+    "consistent": 6,
+    "discrepancies": 0
+  },
+  "timing": {
+    "total_ms": 0.0,
+    "query_count": 6
+  },
+  "disclaimer": "Observational only. Not scored, not merged into the Phase 2 audit report, and not evidence about the website's own AI-readiness \u2014 this measures what an assistant already represents, which is provider- and time-dependent and is not guaranteed to be reproducible run to run."
+}

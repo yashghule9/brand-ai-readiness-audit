@@ -27,13 +27,21 @@
 # that produced false positives in practice (see CHANGELOG v0.1.0) and was
 # deliberately removed rather than tuned.
 #
+# `kind` separates two different claims:
+#   - "defect" (default): something is wrong with the site. Appears in the
+#     report's `findings` and counts against the readiness score.
+#   - "limitation": something this audit could not check — a missing render
+#     backend, an exhausted budget. It says nothing about the site, so it is
+#     reported under `audit_limitations` and never affects the score. A brand
+#     must not lose points because the auditor lacked a tool.
+#
 # To add a new failure mode: append an entry under the correct category
 # with all required fields populated (see schemas/ontology.schema.json).
 # No pipeline code changes are needed to pick it up — this file is read at
 # runtime — but a signal it lists must actually be emitted by some producer
 # or it will simply never fire.
 
-ontology_version: "1.2"
+ontology_version: "2.4"
 
 categories:
   rendering_and_execution:
@@ -84,6 +92,14 @@ failure_modes:
       static signals are required together — low text length alone is
       common on legitimately terse pages and is not, by itself, evidence
       of a CSR shell.
+    axis: visibility
+    remediation: >
+      Server-render or statically pre-render the primary content templates so the
+      first HTTP response already contains the product, pricing and support text —
+      Next.js getServerSideProps/ISR, Nuxt SSR, or a prerender layer that serves
+      fully-rendered HTML to crawler user-agents. Verify by fetching the page with
+      curl and grepping for your own headline text: if it is not in the raw
+      response, an assistant that does not execute JavaScript will never see it.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright
     audit_finding_title: "JavaScript-Heavy Rendering Hides Content From Static Crawlers"
@@ -98,6 +114,13 @@ failure_modes:
       scroll events, so a non-scrolling crawler never sees it. Either the
       static `data-src` pattern or a render-confirmed scroll-reveal is
       independently sufficient evidence.
+    axis: visibility
+    remediation: >
+      Put below-the-fold text in the initial HTML and reserve lazy loading for
+      images via native loading="lazy", rather than injecting text nodes on scroll.
+      Where an intersection-observer pattern must stay, ship the same content in
+      the server response (or a <noscript> block) so a non-scrolling crawler still
+      reads it.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright_scroll_driver
     audit_finding_title: "Lazy-Loaded Content Requires Scroll Interaction To Appear"
@@ -111,6 +134,12 @@ failure_modes:
       Elements are hidden behind open Shadow DOM boundaries that standard
       CSS/XPath selectors do not pierce. Detected only after render, by
       walking `element.shadowRoot` across the live DOM.
+    axis: visibility
+    remediation: >
+      Move text-bearing content out of encapsulated web components, or render a
+      light-DOM fallback via slotted content carrying the same text. Shadow roots
+      are not pierced by standard selector-based extraction, so anything that
+      exists only inside one is effectively unpublished.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright_shadow_root_traversal
     audit_finding_title: "Shadow DOM Encapsulation Hides Content From Standard Selectors"
@@ -124,12 +153,19 @@ failure_modes:
       Essential data is hidden behind required UI events — tab switches,
       accordion expansion, or "Load More" clicks — confirmed only once a
       driven interaction measurably changes the rendered text.
+    axis: visibility
+    remediation: >
+      Render tab, accordion and "load more" content into the DOM on first paint and
+      toggle visibility with CSS, instead of fetching it on click. Specs, pricing
+      tiers and FAQ answers hidden behind an interaction are exactly the facts
+      assistants get asked for.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright_interaction_driver
     audit_finding_title: "Essential Content Is Gated Behind Required UI Interactions"
 
   RENDER_COVERAGE_GAP:
     category: rendering_and_execution
+    kind: limitation
     severity: medium
     match_mode: all
     signals: [render_backend_unavailable]
@@ -139,6 +175,12 @@ failure_modes:
       budget for this audit was exhausted), so JavaScript-dependent
       content could not be confirmed either way. This is an honest
       coverage gap, not a finding about the site itself.
+    axis: visibility
+    remediation: >
+      No site change is implied by this finding — it records what this audit could
+      not verify. Re-run with the render backend installed (pip install
+      braiaudit[render] and playwright install chromium) to confirm or clear the
+      render-dependent checks.
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright
     audit_finding_title: "Render-Dependent Checks Could Not Be Verified"
@@ -155,6 +197,13 @@ failure_modes:
     description: >
       Real content is drowned out by navigation links, site footers, and
       sidebars, lowering the signal-to-noise ratio for any extractor.
+    axis: visibility
+    remediation: >
+      Raise the main-content-to-chrome ratio on template pages: wrap primary
+      content in <main>/<article>, place repeated navigation and footer blocks
+      behind semantic landmarks, and stop duplicating the full site menu on every
+      page. Extractors score density per page, so a product page that is 80%
+      navigation reads as a navigation page.
     recovery_strategy: content-cleaner
     recommended_tool: readability_parser
     audit_finding_title: "High Noise-to-Content Ratio Obstructs Data Extraction"
@@ -169,6 +218,14 @@ failure_modes:
       covers the viewport or blocks proper rendering and readability.
       Either signal alone is sufficient — they describe the same overlay
       detected via different attributes.
+    axis: engagement
+    remediation: >
+      Do not block first paint with a cookie wall, newsletter modal or app
+      interstitial. Render page content beneath the overlay in the DOM rather than
+      behind a display:none / aria-hidden gate, and defer non-essential prompts
+      until after a scroll or a second pageview. A visitor who arrived from an AI
+      answer with one specific question leaves rather than dismissing a dialog to
+      go looking for it.
     recovery_strategy: content-cleaner
     recommended_tool: overlay_stripper
     audit_finding_title: "Modal/Overlay Interrupts Obstruct Page Content"
@@ -182,6 +239,13 @@ failure_modes:
       Complete lack of structural hierarchy (no <article>, <section>,
       heading tags) in a page with substantial text makes document parsing
       and LLM chunking unreliable.
+    axis: visibility
+    remediation: >
+      Use real semantic HTML: <h1>-<h3> for the actual heading hierarchy, <p> for
+      prose, <table> for specifications, and <main>/<article>/<section> for
+      structure. Chunking pipelines split on these boundaries; a page built
+      entirely from <div>s gets split arbitrarily and its facts end up separated
+      from the headings that give them meaning.
     recovery_strategy: content-cleaner
     recommended_tool: visual_layout_reconstruction
     audit_finding_title: "Absent Semantic HTML Structure Undermines Reliable Parsing"
@@ -200,6 +264,13 @@ failure_modes:
       instead of standard `<a href="...">`, so static link extractors find
       no outgoing internal URLs. Either pattern alone is sufficient
       evidence of the trap.
+    axis: visibility
+    remediation: >
+      Give every navigable destination a real anchor with an href to a resolvable
+      path. Replace onclick-driven <div>s and href="javascript:void(0)" with
+      anchors that resolve server-side — keep the JavaScript handler if the app
+      needs it, but let the href be the source of truth so crawlers can walk the
+      link graph.
     recovery_strategy: crawl-render-audit
     recommended_tool: network_call_interception
     audit_finding_title: "Non-Standard Navigation Links Are Invisible To Crawlers"
@@ -213,6 +284,13 @@ failure_modes:
       The answer to a likely user/AI query requires aggregating facts
       scattered across multiple internal subpages (e.g. /features,
       /pricing) rather than being answerable from one page.
+    axis: engagement
+    remediation: >
+      Consolidate the facts that answer one question onto one page: price,
+      availability, key specs and the support path belong on the product page
+      itself rather than scattered across separate pricing, FAQ and shipping pages.
+      Assistants synthesise most reliably when a single retrieved document answers
+      the question completely.
     recovery_strategy: query-guided-discovery
     recommended_tool: link_relevance_ranker
     audit_finding_title: "Information Fragmented Across Multiple Subpages"
@@ -227,6 +305,12 @@ failure_modes:
       normal crawl traversal or sitemap enumeration. Both conditions are
       required: a page missing from the sitemap but still linked from
       elsewhere on the site is not truly orphaned.
+    axis: visibility
+    remediation: >
+      Link every page you want discovered from at least one crawlable page, and
+      list it in sitemap.xml with an accurate lastmod. A page reachable only
+      through a search box or a JavaScript-built menu is, for crawl purposes,
+      unpublished.
     recovery_strategy: query-guided-discovery
     recommended_tool: sitemap_and_search_pivot
     audit_finding_title: "Orphaned Page Is Unreachable Via Sitemap Or Internal Links"
@@ -241,21 +325,67 @@ failure_modes:
     match_mode: all
     signals: [soft_404_suspected]
     description: >
-      Client-side router returns a `200 OK` while serving a "Page Not
-      Found"/"Item Unavailable" UI, deceiving status-code-only crawlers.
+      The URL returns `200 OK` while serving an error page, deceiving
+      status-code-only crawlers. Two families reach this: a client-side
+      router rendering its "Page Not Found"/"Item Unavailable" UI, and an
+      edge or origin that never resolved the hostname returning its own stub
+      ("404 Unknown host") at 200. Both are confirmed only on a short body —
+      a long page merely discussing 404s is a page about the status code,
+      not one serving it. The page is not analysed as the site's content
+      either way, so no content or identity conclusion is drawn from it.
+    axis: staleness
+    remediation: >
+      Return a real 404 (or 410) for content that no longer exists, and a 301 to
+      the successor page for anything replaced — with on-page text stating the
+      relationship, e.g. "the previous model has been discontinued and is
+      replaced by <successor>". A 200 response carrying "page not found" text teaches crawlers the URL
+      is still live, so stale copies keep circulating and the update relationship
+      is never learned.
     recovery_strategy: website-observer
     recommended_tool: soft_404_phrase_detector
     audit_finding_title: "Soft 404 Returns Success Status For Missing Content"
 
+  MISSING_PRODUCT_SCHEMA:
+    category: semantic_deficit
+    axis: visibility
+    severity: high
+    match_mode: all
+    signals: [missing_product_schema]
+    description: >
+      The page quotes prices or asks for a purchase, but carries no
+      Product/Offer markup. This is the case where structured data matters
+      most: an assistant asked "how much does it cost" has to infer the
+      number from prose, and a figure picked out of marketing copy is how
+      wrong prices end up in AI answers. Distinct from the generic
+      missing-markup finding, which fires on pages with nothing
+      transactional to describe and is not nearly as costly.
+    remediation: >
+      Add Product and Offer JSON-LD to the templates that quote prices:
+      name, sku, image, description, plus offers with price, priceCurrency,
+      availability and priceValidUntil. priceValidUntil matters more than it
+      looks — it tells a retrieval pipeline when to stop trusting the number
+      instead of quoting a stale one indefinitely.
+    recovery_strategy: structured_data_review
+    recommended_tool: none
+    audit_finding_title: "Pricing Pages Lack Product/Offer Structured Data"
+
   MISSING_STRUCTURED_DATA:
     category: semantic_deficit
-    severity: high
+    severity: medium
     match_mode: all
     signals: [missing_schema_org]
     description: >
       Lack of machine-readable metadata (JSON-LD, Microdata, Schema.org)
       forces AI systems to rely on messy probabilistic NLP parsing to infer
       entity types and facts.
+    axis: visibility
+    remediation: >
+      Add JSON-LD to the primary templates: Organization (name, logo, foundingDate,
+      sameAs) sitewide, Product plus Offer (name, sku, price, priceCurrency,
+      availability, priceValidUntil) on product pages, FAQPage on support content,
+      and BreadcrumbList for hierarchy. Structured triples let a retrieval pipeline
+      bind a number to "price" rather than inferring it from prose, which is where
+      wrong prices in AI answers come from.
     recovery_strategy: heuristic_extraction
     recommended_tool: llm_schema_infer
     audit_finding_title: "No Schema.org / JSON-LD Structured Data Available"
@@ -270,6 +400,12 @@ failure_modes:
       `<link rel="canonical">` tag, risking infinite duplicate-processing
       loops for crawlers. Duplicate content alone is not a problem if a
       canonical tag already disambiguates it — both signals are required.
+    axis: identity
+    remediation: >
+      Emit a self-referencing canonical link element on every page, and point
+      duplicate variants (tracking parameters, print views, regional aliases) at a
+      single canonical target. Without it, near-identical URLs compete and
+      citations get split across several spellings of the same page.
     recovery_strategy: content-cleaner
     recommended_tool: content_hash_deduplication
     audit_finding_title: "Missing Canonical Tags Create Duplicate-Content Ambiguity"
@@ -277,6 +413,38 @@ failure_modes:
   # ---------------------------------------------------------------------
   # 5. Compliance & Access Governance
   # ---------------------------------------------------------------------
+
+  AI_CRAWLER_ROBOTS_DISALLOW:
+    category: compliance_and_access
+    evidence_metric: blocked_ai_crawlers
+    severity: critical
+    match_mode: all
+    signals: [ai_crawler_robots_disallow]
+    description: >
+      robots.txt names one or more AI answer-engine crawlers (GPTBot,
+      ClaudeBot, PerplexityBot, Google-Extended, CCBot and peers) in a
+      Disallow rule. This is the most direct possible cause of "our brand
+      never appears in ChatGPT or Gemini": the assistants' retrieval step
+      is turned away at the door, so no amount of on-page optimisation can
+      reach them. Frequently unintentional — copied from a boilerplate
+      robots.txt, or added to block scrapers without realising the same
+      rule excludes the assistants customers now ask for recommendations.
+      Distinct from USER_AGENT_ROBOTS_DISALLOW, which is about this
+      auditor's own access rather than the AI ecosystem's.
+    remediation: >
+      Decide the policy deliberately, then make robots.txt say it. To be
+      discoverable by AI assistants, remove or narrow the Disallow rules
+      for these agents and allow at least the retrieval-time crawlers
+      (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended);
+      keep CCBot blocked if the concern is training-corpus inclusion
+      specifically, since that is a separate question from retrieval. Then
+      confirm the CDN/WAF is not blocking the same agents independently of
+      robots.txt — test with `curl -A "GPTBot" https://<domain>/` and
+      check for a 200 with real HTML rather than a challenge page.
+    axis: visibility
+    recovery_strategy: halt_and_report
+    recommended_tool: none
+    audit_finding_title: "Robots.txt Blocks AI Answer-Engine Crawlers"
 
   USER_AGENT_ROBOTS_DISALLOW:
     category: compliance_and_access
@@ -286,6 +454,12 @@ failure_modes:
     description: >
       Site policy explicitly forbids automated crawling of the target
       route for the declared (or all) user-agents.
+    axis: visibility
+    remediation: >
+      Review the Disallow rules covering this route. If the intent was to stop
+      scrapers rather than to opt out of discovery entirely, narrow the rule to the
+      specific paths that need protecting instead of blanket-disallowing the site
+      or all agents.
     recovery_strategy: halt_and_report
     recommended_tool: none
     audit_finding_title: "Robots.txt Rules Block AI Scrapers"
@@ -297,18 +471,727 @@ failure_modes:
     signals: [http_429_rate_limit]
     description: >
       Crawler request frequency exceeds server rate-limiting thresholds.
+    axis: visibility
+    remediation: >
+      Raise or exempt rate limits for well-behaved crawler user-agents, and publish
+      a Crawl-delay in robots.txt so crawlers pace themselves rather than being
+      throttled mid-crawl. Repeated 429s cause retrieval systems to back off and
+      sample the site less often over time.
     recovery_strategy: exponential_backoff
     recommended_tool: crawl_delay_scheduler
     audit_finding_title: "Rate Limiting Restricts Sustained Crawl Access"
 
   ANTI_BOT_CAPTCHA_CHALLENGE:
     category: compliance_and_access
+    evidence_metric: anti_bot_evidence
     severity: critical
     match_mode: all
     signals: [anti_bot_challenge_detected]
     description: >
       A technical access barrier (Cloudflare/Akamai/CAPTCHA) is actively
       blocking automated traffic.
+    axis: visibility
+    remediation: >
+      Allowlist the AI crawler user-agents in the CDN/WAF bot-management rules
+      (Cloudflare Bot Fight Mode, Akamai and equivalents), verifying by published
+      IP range rather than user-agent string alone. Bot mitigation tuned for
+      scrapers routinely blocks assistants' retrieval fetches, and that block is
+      invisible in robots.txt — the site looks open and is not.
     recovery_strategy: halt_and_report
     recommended_tool: none
     audit_finding_title: "Anti-Bot Challenge Blocks Automated Access"
+  # ---------------------------------------------------------------------
+  # 6. Freshness, Identity & Arrival Experience
+  # ---------------------------------------------------------------------
+
+  NO_FRESHNESS_SIGNAL:
+    category: semantic_deficit
+    axis: staleness
+    severity: high
+    match_mode: all
+    signals: [freshness_markers_absent]
+    description: >
+      The page carries structured data but no dateModified or datePublished,
+      and no visible "last updated" marker either. Nothing tells a retrieval
+      pipeline how current these facts are, so a 2019 snapshot of the same
+      claims elsewhere on the web looks exactly as authoritative as this
+      page. Where old facts have had years to propagate across press
+      coverage, retailer listings and forum posts, the numerically dominant
+      old version tends to win the synthesis step — undated freshness cannot
+      break that tie.
+    remediation: >
+      Add dateModified and datePublished to the JSON-LD of every page whose
+      facts change, and show a visible "last updated" line for the human
+      reader. Keep sitemap lastmod values accurate on each edit, and ping
+      IndexNow on publish so crawlers are alerted rather than waiting for
+      their next scheduled pass.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "No Freshness Signal Distinguishes Current Facts From Old Ones"
+
+  STALE_STRUCTURED_DATA_DESYNC:
+    category: semantic_deficit
+    evidence_metric: structured_data_desync
+    axis: staleness
+    severity: high
+    match_mode: all
+    signals: [schema_visual_desync]
+    description: >
+      The page's structured data asserts a brand string — a slogan, legal
+      name or alternate name — that appears nowhere in the text a human
+      reads. This is the classic rebrand desync: the visible site was
+      updated and the JSON-LD behind it was not, so machine extraction keeps
+      publishing the retired tagline while every person who visits sees the
+      current one. The mismatch is invisible to anyone reviewing the page in
+      a browser, which is why it survives rebrands.
+    remediation: >
+      Update the JSON-LD in the same change as the visible copy, and make
+      that a hard rule in the release checklist rather than a convention.
+      Grep the deployed structured data for retired brand strings after any
+      identity change; anything the markup claims should be findable in the
+      rendered page.
+    recovery_strategy: structured_data_review
+    recommended_tool: none
+    audit_finding_title: "Structured Data Contradicts The Visible Page"
+
+  UNCLAIMED_ENTITY_IDENTITY:
+    category: semantic_deficit
+    axis: identity
+    severity: high
+    match_mode: all
+    signals: [entity_sameas_missing]
+    description: >
+      Organization markup exists but declares no sameAs links, so nothing
+      connects this site to the brand's entity record anywhere else. When a
+      brand name is shared with a larger entity — an airline, a mythological
+      figure, an unrelated company — a retrieval pipeline resolves the name
+      to whichever candidate carries stronger corroboration, and a brand
+      with no linked identity loses that contest by default. The brand then
+      vanishes from the answer even though its name was processed
+      correctly.
+    remediation: >
+      Add sameAs to the Organization schema, linking the official domain to
+      verified social profiles, a Wikidata entity and any business-registry
+      identifier. Populate disambiguating context alongside it — industry,
+      foundingDate, registered address — and keep the brand descriptor
+      byte-identical across every directory and listing so the entity
+      signature is consistent wherever it is encountered.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Brand Entity Has No Linked Identity Records"
+
+  QUERY_REGISTER_MISMATCH:
+    category: discovery_and_pathing
+    axis: visibility
+    severity: medium
+    match_mode: all
+    signals: [no_question_shaped_headings]
+    description: >
+      The page has headings, but not one of them is shaped like a question a
+      person would actually ask. Users prompt assistants in colloquial,
+      comparative, price-bounded language; pages written purely in brand
+      voice do not lexically or semantically align with those queries and
+      lose the retrieval race to third-party listicles that mirror the
+      query's own phrasing. This is a content-authoring problem rather than
+      a technical defect, which is why purely technical audits miss it.
+    remediation: >
+      Add headings phrased the way customers ask: "How much does the
+      <product> cost?", "Which <product> is best for <use case>?". Mirror
+      real query phrasing rather than internal product naming, and answer
+      immediately beneath each heading so the pairing is extractable as a
+      unit.
+    recovery_strategy: content_authoring
+    recommended_tool: none
+    audit_finding_title: "Content Is Not Written In The Register Users Ask Questions In"
+
+  ANSWER_BURIED_BELOW_FOLD:
+    category: content_noise
+    axis: engagement
+    severity: medium
+    match_mode: all
+    signals: [primary_facts_below_fold]
+    description: >
+      The page contains concrete facts — prices, sizes, specifications — but
+      none appear in its opening text; the top of the page is prose alone. A
+      visitor arriving from an assistant already knows what they want and
+      lands mid-task, so making them scroll or hunt for the number that
+      brought them here is the commonest cause of an immediate bounce from
+      AI referral traffic. It also weakens extraction, since the first
+      passage of a document carries disproportionate weight.
+    remediation: >
+      Lead with the answer. Put price, availability and key specifications
+      in the opening block of the page, above the fold and outside any
+      accordion, then let the marketing narrative follow. A visitor who can
+      confirm the fact in seconds stays; one who has to search again leaves.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Concrete Answers Are Buried Below The Opening Content"
+  # ---------------------------------------------------------------------
+  # 7. Maintenance signals, orientation and entity coherence
+  # ---------------------------------------------------------------------
+
+  STALE_COPYRIGHT_YEAR:
+    category: semantic_deficit
+    axis: staleness
+    severity: low
+    match_mode: all
+    signals: [stale_copyright_year]
+    description: >
+      The footer copyright notice names a year earlier than the current one.
+      Weak on its own — plenty of maintained sites hardcode it — which is
+      why it is scored low and is most useful as corroboration alongside
+      other maintenance signals rather than as a standalone verdict.
+    remediation: >
+      Render the copyright year from the server clock rather than hardcoding
+      it. It is a small thing that a reader and a crawler both read as a
+      proxy for whether anyone is still maintaining the site.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "Footer Copyright Year Is Out Of Date"
+
+  LAST_MODIFIED_STALE_OR_ABSENT:
+    category: semantic_deficit
+    axis: staleness
+    severity: low
+    match_mode: all
+    signals: [last_modified_stale_or_absent]
+    description: >
+      The response carries no Last-Modified header, or one older than about
+      eighteen months. Crawlers use it to decide whether a refetch is worth
+      it, so its absence makes recrawl scheduling guesswork rather than
+      informed.
+    remediation: >
+      Emit an accurate Last-Modified header for HTML responses, driven by
+      when the content actually changed rather than by deploy time. If a CDN
+      strips or rewrites it, fix that at the edge configuration.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "Last-Modified Header Is Missing Or Long Out Of Date"
+
+  SITEMAP_LASTMOD_MEANINGLESS:
+    category: discovery_and_pathing
+    axis: staleness
+    severity: medium
+    match_mode: all
+    signals: [sitemap_lastmod_meaningless]
+    evidence_metric: sitemap_lastmod_state
+    description: >
+      The sitemap declares no <lastmod> dates, or gives every URL the same
+      one. Either way it carries no per-page change information, so a
+      crawler cannot prioritise what actually moved and falls back to
+      recrawling on its own schedule — which is how updates go unnoticed for
+      weeks.
+    remediation: >
+      Emit a per-URL <lastmod> reflecting when that page's content last
+      changed, not when the sitemap was regenerated. Identical dates across
+      every entry are worse than none, because they look informative and
+      are not.
+    recovery_strategy: content_freshness_review
+    recommended_tool: none
+    audit_finding_title: "Sitemap Change Dates Carry No Information"
+
+  VISIBLE_DATE_CONTRADICTS_SCHEMA:
+    category: semantic_deficit
+    axis: staleness
+    severity: medium
+    match_mode: all
+    signals: [visible_date_contradicts_schema]
+    description: >
+      The page shows a more recent year than its own structured data claims
+      as dateModified. A machine reading the markup concludes the content is
+      older than the page itself says it is, and freshness-sensitive
+      retrieval will weigh it accordingly.
+    remediation: >
+      Update dateModified in the same change as the visible content, and
+      make that a release-checklist rule rather than a convention. Where a
+      template renders a year automatically, drive the structured data from
+      the same source so the two cannot drift.
+    recovery_strategy: structured_data_review
+    recommended_tool: none
+    audit_finding_title: "Visible Dates Contradict The Page's Own Structured Data"
+
+  NO_PAGE_IDENTIFYING_HEADING:
+    category: content_noise
+    axis: engagement
+    severity: medium
+    match_mode: all
+    signals: [no_page_identifying_heading]
+    description: >
+      The page has no <h1>, or no title, so nothing states what it is. A
+      visitor arriving cold from a search result or an assistant's citation
+      has to infer the page's subject from body copy, and an extractor has
+      no anchor to attach the content to.
+    remediation: >
+      Give every page exactly one <h1> naming what the page is about, and a
+      <title> that identifies both the page and the brand. Templates that
+      render the site name alone in both places leave every page looking
+      identical to a machine.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Page Does Not State What It Is"
+
+  NO_BREADCRUMB_TRAIL:
+    category: discovery_and_pathing
+    axis: engagement
+    severity: low
+    match_mode: all
+    signals: [no_breadcrumb_trail]
+    description: >
+      A page several levels deep offers no breadcrumb trail, in markup or
+      as BreadcrumbList structured data. A visitor who arrived directly —
+      which is what an assistant citation produces — has no sense of where
+      they are in the site or how to move up.
+    remediation: >
+      Add a breadcrumb trail to templates below the top level, and mark it up
+      as BreadcrumbList. It orients direct arrivals and gives extraction a
+      cheap, reliable read on site hierarchy.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Deep Page Offers No Breadcrumb Trail"
+
+  META_DESCRIPTION_ABSENT:
+    category: semantic_deficit
+    axis: engagement
+    severity: low
+    match_mode: all
+    signals: [meta_description_absent]
+    description: >
+      No meta description. That string is what search results and many AI
+      citations render as the page's summary, so its absence leaves the
+      snippet to be auto-generated from whatever text happens to come first.
+    remediation: >
+      Write a specific meta description per page stating what the page
+      answers. Auto-generated snippets tend to surface navigation text or
+      boilerplate, which is a poor advertisement for the page in the one
+      place a reader decides whether to click.
+    recovery_strategy: content_authoring
+    recommended_tool: none
+    audit_finding_title: "Page Has No Meta Description"
+
+  WALL_OF_TEXT:
+    category: content_noise
+    axis: engagement
+    severity: medium
+    match_mode: all
+    signals: [wall_of_text_structure]
+    description: >
+      Substantial prose with almost no heading structure. A reader arriving
+      cold cannot scan it to find the part they came for, and a chunking
+      pipeline has no natural split points, so passages get divided
+      arbitrarily and separated from their context.
+    remediation: >
+      Break long content with headings that name what each section answers,
+      roughly one every few hundred words. This serves the scanning reader
+      and the chunker at once — both are looking for the same boundaries.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Long Content Has Almost No Heading Structure"
+
+  RENDER_BLOCKING_SCRIPTS:
+    category: rendering_and_execution
+    axis: engagement
+    severity: low
+    signal_type: lab
+    match_mode: all
+    signals: [render_blocking_scripts]
+    description: >
+      Several scripts in <head> carry neither async nor defer, so they block
+      parsing before anything renders. This is a lab signal: it counts
+      markup, and does not observe what a visitor's connection actually
+      experiences. Treat it as a hypothesis to confirm with field data, not
+      as a measurement of load time.
+    remediation: >
+      Add defer (or async where order does not matter) to head scripts, or
+      move them to the end of body. Then confirm against real field data —
+      this check reads markup and cannot tell you what visitors experience.
+    recovery_strategy: information_architecture
+    recommended_tool: none
+    audit_finding_title: "Render-Blocking Scripts In Document Head"
+
+  ORGANIZATION_LOGO_MISSING:
+    category: semantic_deficit
+    axis: identity
+    severity: low
+    match_mode: all
+    signals: [organization_logo_missing]
+    description: >
+      Organization markup exists but declares no logo. The logo property is
+      one of the few machine-readable handles on brand identity, and
+      knowledge panels and entity records draw on it directly.
+    remediation: >
+      Add a logo URL to the Organization schema, pointing at a stable,
+      publicly fetchable image. Keep it in step with the visible brand mark
+      so the two cannot drift apart across a rebrand.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Organization Schema Declares No Logo"
+
+  BRAND_NAME_INCONSISTENT:
+    category: semantic_deficit
+    axis: identity
+    severity: medium
+    match_mode: all
+    signals: [brand_name_inconsistent]
+    evidence_metric: brand_name_variants
+    description: >
+      The brand is named differently across the page title, og:site_name and
+      Organization schema, with no one form containing another. Entity
+      resolution leans on a consistent signature, so several spellings of the
+      same brand weaken the link between them and make collision with a
+      same-named entity more likely.
+    remediation: >
+      Settle on one canonical brand string and use it byte-identically in
+      Organization.name, og:site_name and the brand portion of every title.
+      Reserve variation for the page-specific half of the title.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Brand Is Named Inconsistently Across The Page"
+
+  CONTACT_DETAILS_ABSENT:
+    category: semantic_deficit
+    axis: identity
+    severity: medium
+    match_mode: all
+    signals: [contact_details_absent]
+    description: >
+      No machine-readable way to contact or locate the operator — no tel or
+      mailto link, no postal address, no ContactPoint markup. A consistent
+      name-address-phone signature is a large part of what distinguishes a
+      brand from others sharing its name, and its absence leaves entity
+      resolution with less to work from.
+    remediation: >
+      Publish contact details in markup, not only in an image or a contact
+      form: a tel/mailto link, a postal address, or ContactPoint structured
+      data. Keep the same details across every directory listing so the
+      signature is consistent wherever it is encountered.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "No Machine-Readable Contact Or Location Details"
+  # ---------------------------------------------------------------------
+  # 8. Off-site corroboration
+  # ---------------------------------------------------------------------
+
+  ENTITY_RECORD_ABSENT:
+    category: semantic_deficit
+    axis: identity
+    severity: medium
+    match_mode: all
+    signals: [entity_record_absent]
+    evidence_metric: entity_evidence
+    description: >
+      No public entity record was found for this brand under any of the name
+      variants tried. Entity resolution works by corroboration: when a name
+      is shared with a larger entity, a retrieval pipeline resolves it to
+      whichever candidate the wider web supports better, and a brand with no
+      independent record loses that contest without being at fault on its
+      own pages. Whether this reflects a small regional brand or a notability
+      lag is a judgement about prominence that no automated check can settle,
+      so this finding reports the absence and leaves the reason to a reader.
+    remediation: >
+      Establish an independent, structured record of the brand and link it
+      both ways: claim a Wikidata entity with the official domain as its
+      website, and add the matching sameAs links to the Organization schema
+      on the site. Keep the brand descriptor identical across every directory
+      and listing so the entity signature is consistent wherever it is
+      encountered. Notability rules govern encyclopaedic articles, but a
+      structured entity record does not require one.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "No Public Entity Record Corroborates This Brand"
+
+  ENTITY_RECORD_NOT_RECIPROCAL:
+    category: semantic_deficit
+    axis: identity
+    severity: high
+    match_mode: all
+    signals: [entity_record_not_reciprocal]
+    evidence_metric: entity_evidence
+    description: >
+      A public entity record exists under this brand's name, but it does not
+      list this domain as its official site. This is the entity-collision
+      case made concrete: a query about the name has a well-corroborated
+      answer that is not this brand, so the assistant can process the name
+      correctly and still never surface the site. It also covers a record
+      that is genuinely about this brand but has drifted — an old domain, or
+      a claim never updated after a move.
+    remediation: >
+      Determine whether the record describes this brand or a different one.
+      If it is this brand, correct its official-website property to the
+      current domain. If it is a different entity sharing the name, create a
+      distinct record for this brand with disambiguating context — industry,
+      founding date, registered address — and link it from the site's
+      Organization schema via sameAs so the two are separable.
+    recovery_strategy: entity_disambiguation
+    recommended_tool: none
+    audit_finding_title: "Public Entity Record Does Not Point Back To This Site"
+  HTTP_ERROR_STATUS_BLOCKED:
+    category: compliance_and_access
+    axis: visibility
+    severity: critical
+    match_mode: all
+    signals: [http_error_status_blocked]
+    evidence_metric: http_error_evidence
+    description: >
+      The page returned an error status (4xx or 5xx) with no retrievable
+      content, and no other check explains why: it is not a rate limit, and
+      no anti-bot fingerprint matched. This audit cannot determine the exact
+      cause — access control, geographic or automated-traffic blocking, a
+      misconfigured origin, or a genuine outage all look identical from the
+      outside — but the practical effect is the same regardless of cause: an
+      AI crawler using a comparable generic user-agent gets nothing from this
+      page either. Reported as critical because it is functional invisibility,
+      not a defect in what content exists.
+    remediation: >
+      Fetch the URL with a plain HTTP client and a generic user-agent, the way
+      this check did, and read what actually comes back. If it is a CDN or
+      WAF rule blocking unrecognised clients, confirm which automated
+      user-agents are allowlisted. If it is a genuine server error, the fix is
+      unrelated to AI readiness — but until it returns real content, no
+      crawler using a similar profile can read this page either.
+    recovery_strategy: manual_investigation
+    recommended_tool: none
+    audit_finding_title: "Page Returns An Error Status With No Retrievable Content"
+  HTTP_ERROR_STATUS_UNCONFIRMED:
+    category: compliance_and_access
+    axis: visibility
+    kind: limitation
+    severity: medium
+    match_mode: all
+    signals: [http_error_status_unconfirmed]
+    evidence_metric: http_error_evidence
+    description: >
+      The page returned HTTP 403 or 503 with a real, HTML-parseable body,
+      but no anti-bot fingerprint this audit knows matched it. This is
+      genuinely ambiguous: it could be a challenge or block page worded in a
+      way not on the fingerprint list, or a legitimate response that simply
+      uses one of these statuses (a paywall teaser, an age-gate, a regional
+      notice) while still carrying real content. Nothing observable from
+      here distinguishes the two reliably, and guessing wrong in either
+      direction has a real cost — so this is reported as an explicit
+      inability to confirm, not as a finding about the site. The body was
+      not analysed as the site's real content, and this never counts
+      against the readiness score.
+    remediation: >
+      No site change is implied by this finding on its own. Load the URL
+      manually with a plain HTTP client and a generic user-agent to see what
+      was actually returned. If it is a block or challenge page, that is the
+      same access problem HTTP_ERROR_STATUS_BLOCKED describes and the same
+      remediation applies. If it is genuine content, this audit under-counted
+      that page — a widened or added fingerprint would let it be confirmed
+      as blocked-or-not on a future run rather than left undetermined.
+    recovery_strategy: manual_investigation
+    recommended_tool: none
+    audit_finding_title: "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine"
+  NO_ANALYSABLE_PAGE_EVIDENCE:
+    category: compliance_and_access
+    axis: visibility
+    kind: limitation
+    severity: medium
+    match_mode: all
+    signals: [no_analysable_page_evidence]
+    description: >
+      Not one page in this audit yielded content that could be analysed:
+      every URL attempted was either unreachable (DNS, connection or
+      timeout failure) or returned a response the audit deliberately
+      declined to read as the site's content — a blocked status, an
+      anti-bot challenge, a rate limit, or a robots.txt disallow. The
+      readiness checks therefore had nothing to run against. This says
+      what this audit could not obtain, not what the site is: a site that
+      serves a challenge to an unrecognised client may serve perfectly
+      good content to a browser, and nothing observable from here settles
+      that. Because no check could be evaluated, the readiness score is
+      reported as null rather than as a number — an absent score, not a
+      perfect one and not a failing one. Any access finding reported
+      alongside this limitation stands on its own evidence and is
+      unaffected.
+    remediation: >
+      No site change is implied by this limitation on its own. Load the
+      seed URL manually with a plain HTTP client and a generic user-agent,
+      the way this audit did, and read what actually comes back. If the
+      host does not resolve, confirm the apex domain has a DNS record and
+      whether the canonical entry point is a different host. If a challenge
+      or block page comes back, that is an access question — see any
+      accompanying access finding for the specific evidence. Once one page
+      returns readable content, re-run the audit and the readiness checks
+      will have something to evaluate.
+    recovery_strategy: manual_investigation
+    recommended_tool: none
+    audit_finding_title: "No Page Yielded Content This Audit Could Analyse"
+
+# =====================================================================
+# Proactive opportunities
+# =====================================================================
+#
+# An audit that only lists defects under-serves the brand: the most
+# valuable AI-readiness work is often an addition, not a repair, and a
+# site with zero findings still has plenty to do. Each entry below is a
+# recommendation emitted *independently* of whether any failure mode
+# fired.
+#
+# `suppressed_by` names the failure modes that already cover this ground.
+# When any of them is present in the report, the opportunity is dropped —
+# the finding's own `remediation` is the more specific advice, and saying
+# both would be noise. An empty (or absent) `suppressed_by` means the
+# opportunity always applies.
+#
+# These never carry evidence and never affect the readiness score: they
+# are advice, not observations about the site. Nothing here is asserted
+# as a defect.
+
+opportunities:
+
+  ANSWER_FIRST_CONTENT_BLOCKS:
+    axis: visibility
+    priority: high
+    suppressed_by: [APP_SHELL_EMPTY_DOM, HIGH_BOILERPLATE_DENSITY, GENERIC_DIV_SOUP]
+    rationale: >
+      Assistants extract best from a single declarative sentence that
+      states a fact outright. Marketing copy that circles a fact
+      ("engineered for flight") gives a retrieval pipeline nothing to
+      quote, so it either skips the page or paraphrases loosely.
+    action: >
+      Open each key page with one plain sentence stating the fact a user
+      would ask for, near the top and outside any accordion — for a product
+      page, "<product> costs <price> as of <date>." Keep the
+      brand voice below it; put the extractable claim first.
+
+  QUERY_SHAPED_LANDING_CONTENT:
+    axis: visibility
+    priority: high
+    suppressed_by: []
+    rationale: >
+      People ask assistants comparative, price-bounded, colloquial
+      questions ("best running shoes under 6000 in India"), not brand
+      questions. Pages written only in brand vocabulary lose the retrieval
+      race to third-party listicles that mirror the query's own phrasing.
+    action: >
+      Publish content shaped like the questions being asked: category and
+      comparison pages, "best X for Y" guides, and an FAQ page whose
+      headings are verbatim user questions. Mirror real query phrasing in
+      titles and H2s rather than internal product naming.
+
+  EXPLICIT_FRESHNESS_MARKERS:
+    axis: staleness
+    priority: high
+    suppressed_by: []
+    rationale: >
+      Without a machine-readable date, a 2019 snapshot and a 2024 page look
+      equally current to a retrieval pipeline, so the older and
+      more-corroborated version tends to win. Freshness has to be stated,
+      not implied by a redesign.
+    action: >
+      Add dateModified and datePublished to the JSON-LD on every page whose
+      facts change, show a visible "last updated" line, and keep sitemap
+      lastmod values accurate on each edit. Ping IndexNow (which Bing, and
+      through it Copilot, consumes) on publish so updates are pulled
+      promptly instead of waiting for the next crawl.
+
+  CANONICAL_FACTS_PAGE:
+    axis: staleness
+    priority: medium
+    suppressed_by: []
+    rationale: >
+      Corrections propagate only if there is something quotable to
+      propagate. A single dated page stating current brand facts gives
+      every downstream surface — retrieval pipelines, journalists,
+      directory editors — one authoritative thing to cite.
+    action: >
+      Publish a Press/Facts page carrying the current tagline, logo,
+      founding date, leadership, product line and pricing, each with the
+      date it took effect and the prior value it replaced. Link it from the
+      footer so it is reachable from every page.
+
+  DISCONTINUED_PRODUCT_SUCCESSION:
+    axis: staleness
+    priority: medium
+    suppressed_by: [SOFT_404_MISDIRECTION]
+    rationale: >
+      Deleting a discontinued product's page destroys the update
+      relationship between old and new facts. Crawlers see a dead end and
+      keep trusting cached third-party copies of the old listing.
+    action: >
+      301 each retired product URL to its successor, and state the
+      succession in body text on the destination page. Keep the sentence
+      explicit enough to be quoted: "<retired model> has been discontinued
+      and is replaced by <successor>."
+
+  THIRD_PARTY_CORROBORATION:
+    axis: visibility
+    priority: high
+    suppressed_by: []
+    rationale: >
+      For category queries, live retrieval is dominated by marketplaces,
+      review sites and forum threads rather than brand-owned domains. If a
+      brand is absent or misdescribed on those surfaces, its own site can
+      be flawless and still never enter the candidate set.
+    action: >
+      Audit and correct listings on the marketplaces and review sites that
+      rank for your category queries, and make it easy for independent
+      reviewers to be accurate — publish a press kit with spec sheets and
+      current pricing. This is a corroboration play, not advertising: the
+      goal is that facts about you exist, consistently, off your own domain.
+
+  ENTITY_DISAMBIGUATION_RECORD:
+    axis: identity
+    priority: medium
+    suppressed_by: []
+    rationale: >
+      A brand name shared with a larger entity (an airline, a mythological
+      figure, an unrelated company) loses the disambiguation contest by
+      default — the assistant resolves the name to whichever entity has
+      stronger corroboration, and the brand vanishes from the answer even
+      though its name was processed.
+    action: >
+      Claim a Wikidata entity with sameAs links to the official domain and
+      verified profiles, and add disambiguating context to the on-site
+      Organization schema: industry, foundingDate, registered address. Keep
+      the brand descriptor identical across every directory and listing so
+      the entity signature is consistent wherever it appears.
+
+  AI_REFERRAL_LANDING_EXPERIENCE:
+    axis: engagement
+    priority: medium
+    suppressed_by: [DISTRIBUTED_INFORMATION_FRAGMENTATION, MODAL_INTERRUPT_OVERLAY]
+    rationale: >
+      A visitor arriving from an assistant already knows what they want and
+      arrives mid-task. Landing them on a generic homepage discards the
+      context that brought them and forces them to search again — the
+      commonest cause of an immediate bounce from AI referral traffic.
+    action: >
+      Make sure the fact-dense deep page exists and is the natural citation
+      target, then surface price, availability and key specs above the fold
+      on it. Detect assistant referrers (document.referrer, UTM tags) and
+      lead with the likely intent rather than the standard homepage pitch.
+
+  AI_REFERRAL_MEASUREMENT:
+    axis: engagement
+    priority: medium
+    suppressed_by: []
+    rationale: >
+      This audit observes the site from outside and cannot see who arrives
+      or what they do next. Without first-party segmentation there is no
+      way to tell whether engagement fixes worked.
+    action: >
+      Segment analytics by referrer class so AI-assistant arrivals are
+      measurable separately from organic search and direct, and track
+      bounce rate, scroll depth and conversion for that cohort. Watch
+      server logs for the AI crawler user-agents too, to confirm they are
+      actually fetching and how often.
+
+  ASSISTANT_ANSWER_PANEL:
+    axis: visibility
+    priority: high
+    suppressed_by: []
+    rationale: >
+      Neither this audit nor any on-site change can tell you what an
+      assistant actually says about the brand. That has to be sampled
+      directly, and it is the only metric that measures the outcome rather
+      than a proxy for it.
+    action: >
+      Keep a fixed panel of realistic prompts — category questions, direct
+      brand questions, price and fact probes — and run them across the
+      assistants your customers use on a regular cadence. Log whether the
+      brand is named, whether it is cited with a source link, which URL is
+      cited, and which competitors appear instead. Track share-of-voice and
+      fact-accuracy over time; these are the KPIs the rest of this report
+      is upstream of.

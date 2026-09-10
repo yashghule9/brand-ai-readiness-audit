@@ -70,7 +70,8 @@ def validate_report(report: dict[str, Any]) -> dict[str, Any]:
         )
     )
 
-    recomputed_summary = {
+    summary = report.get("summary") or {}
+    recomputed = {
         "total_findings": len(findings),
         "critical": sum(1 for f in findings if f["severity"] == "critical"),
         "high": sum(1 for f in findings if f["severity"] == "high"),
@@ -79,8 +80,27 @@ def validate_report(report: dict[str, Any]) -> dict[str, Any]:
     checks.append(
         _check(
             "summary_matches_findings",
-            recomputed_summary == report.get("summary"),
+            all(summary.get(k) == v for k, v in recomputed.items()),
             "the summary block's counts are recomputable from the findings array",
+        )
+    )
+
+    opportunities = report.get("opportunities", [])
+    if opportunities:
+        ids = [o["id"] for o in opportunities]
+        checks.append(
+            _check(
+                "sequential_opportunity_ids",
+                ids == [f"O-{i:03d}" for i in range(1, len(opportunities) + 1)],
+                "opportunity ids are sequential O-001, O-002, ... with no gaps",
+            )
+        )
+
+    checks.append(
+        _check(
+            "every_finding_has_an_action",
+            all((f.get("suggested_action") or {}).get("summary") for f in findings),
+            "no problem is reported without telling the reader what to do about it",
         )
     )
 

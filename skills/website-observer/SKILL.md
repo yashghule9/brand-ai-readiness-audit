@@ -1,6 +1,8 @@
 ---
 name: website-observer
 description: Performs a low-overhead HTTP-only inspection of a URL — raw GET request, response headers, status code, robots.txt rules, sitemap.xml presence, and static-HTML metrics (raw text length, script count, root-container detection) — without executing any JavaScript. Use this FIRST for every URL in a Brand AI Readiness Audit, before any headless rendering, to cheaply detect compliance blocks (robots disallow, rate limiting, anti-bot challenges) and to decide whether the static HTML already contains meaningful content or looks like an empty client-side-rendered app shell.
+allowed-tools: Bash, Read, WebFetch
+license: MIT
 ---
 
 # Website Observer
@@ -54,6 +56,14 @@ genuinely warrants it.
     "sitemap_urls": ["https://example.com/sitemap.xml"]
   },
   "sitemap_present": true,
+  "ai_crawler_access": {
+    "GPTBot": false,
+    "ClaudeBot": false,
+    "PerplexityBot": true,
+    "Google-Extended": true
+  },
+  "blocked_ai_crawlers": "robots.txt disallows 2 AI crawler(s): ClaudeBot, GPTBot, while still allowing Bingbot, Googlebot",
+  "internal_links": ["https://example.com/pricing", "https://example.com/about"],
   "raw_html_bytes": 48213,
   "raw_text_length": 312,
   "script_count": 22,
@@ -62,6 +72,7 @@ genuinely warrants it.
   "canonical_tag_present": false,
   "json_ld_present": false,
   "signals": [
+    "ai_crawler_robots_disallow",
     "low_raw_text",
     "high_script_count",
     "root_container_detected",

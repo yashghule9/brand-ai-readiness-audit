@@ -18,7 +18,14 @@ from braiaudit.ontology import diagnose, load_ontology
 from braiaudit.schemas import repo_root
 
 SRC_DIR = repo_root() / "src" / "braiaudit"
-_PRODUCER_MODULES = ("fetch.py", "clean.py", "discovery.py", "render.py", "pipeline.py")
+_PRODUCER_MODULES = (
+    "fetch.py",
+    "clean.py",
+    "discovery.py",
+    "render.py",
+    "pipeline.py",
+    "corroborate.py",
+)
 
 
 def _string_literals(path: Path) -> set[str]:

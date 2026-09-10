@@ -32,16 +32,37 @@ SIGNAL_SOURCES: dict[str, str] = {
     "root_container_detected": "website-observer",
     "data_src_attribute_present": "website-observer",
     "missing_schema_org": "website-observer",
+    "missing_product_schema": "website-observer",
+    "stale_copyright_year": "website-observer",
+    "last_modified_stale_or_absent": "website-observer",
+    "sitemap_lastmod_meaningless": "website-observer",
+    "visible_date_contradicts_schema": "website-observer",
+    "no_page_identifying_heading": "website-observer",
+    "no_breadcrumb_trail": "website-observer",
+    "meta_description_absent": "website-observer",
+    "render_blocking_scripts": "website-observer",
+    "organization_logo_missing": "website-observer",
+    "brand_name_inconsistent": "website-observer",
+    "contact_details_absent": "website-observer",
     "canonical_missing": "website-observer",
     "soft_404_suspected": "website-observer",
     "robots_txt_disallow": "website-observer",
+    "ai_crawler_robots_disallow": "website-observer",
     "http_429_rate_limit": "website-observer",
     "anti_bot_challenge_detected": "website-observer",
+    "http_error_status_blocked": "website-observer",
+    "http_error_status_unconfirmed": "website-observer",
+    "freshness_markers_absent": "website-observer",
+    "entity_sameas_missing": "website-observer",
+    "schema_visual_desync": "website-observer",
     "low_main_text_ratio": "content-cleaner",
     "high_nav_footer_density": "content-cleaner",
     "zero_semantic_tags": "content-cleaner",
     "cookie_banner_detected": "content-cleaner",
     "high_z_index_overlay_present": "content-cleaner",
+    "no_question_shaped_headings": "content-cleaner",
+    "primary_facts_below_fold": "content-cleaner",
+    "wall_of_text_structure": "content-cleaner",
     "high_internal_link_density": "query-guided-discovery",
     "partial_answer_match": "query-guided-discovery:target_queries",
     "zero_incoming_internal_links": "query-guided-discovery",
@@ -51,8 +72,11 @@ SIGNAL_SOURCES: dict[str, str] = {
     "dynamic_interaction_confirmed": "crawl-render-audit",
     "onclick_div_navigation": "crawl-render-audit",
     "javascript_void_href": "crawl-render-audit",
+    "entity_record_absent": "offsite-corroboration",
+    "entity_record_not_reciprocal": "offsite-corroboration",
     "render_backend_unavailable": "pipeline",
     "duplicate_content_detected": "pipeline",
+    "no_analysable_page_evidence": "pipeline",
 }
 
 
@@ -63,6 +87,26 @@ def _mode_evaluated(signals: frozenset[str], match_mode: str, engaged: set[str])
     if match_mode == "any":
         return any(source in engaged for source in sources)
     return all(source in engaged for source in sources)
+
+
+def evaluable_modes_by_axis(
+    engaged_skills: set[str], ontology: Ontology | None = None
+) -> dict[str, list[Any]]:
+    """Failure modes per axis that this run was actually able to evaluate.
+
+    The scoring denominator: a mode gated behind a skill that never ran is
+    not something the site passed, so counting it as achievable would inflate
+    the score exactly where the audit is weakest.
+    """
+    ontology = ontology or load_ontology()
+    by_axis: dict[str, list[Any]] = {}
+    for mode in ontology.failure_modes.values():
+        if mode.kind == "limitation":
+            continue
+        if not _mode_evaluated(mode.signals, mode.match_mode, engaged_skills):
+            continue
+        by_axis.setdefault(mode.axis, []).append(mode)
+    return by_axis
 
 
 def compute_coverage(engaged_skills: set[str], ontology: Ontology | None = None) -> dict[str, Any]:

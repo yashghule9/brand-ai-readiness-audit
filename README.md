@@ -25,6 +25,25 @@ This repo is two things layered together:
    just prose. `braiaudit audit example.com` runs the real pipeline against
    a live site today, with zero required external services.
 
+## For evaluators — the 30-second version
+
+```bash
+pip install -e .
+braiaudit audit example.com
+```
+
+The domain is the only required argument. No flags, no API keys, no config
+file, no database, no server — the audit runs in memory over plain HTTP and
+prints a complete JSON report to stdout. A headless browser is optional; if
+it is absent, render-dependent checks are reported as an explicit coverage
+gap rather than silently skipped.
+
+Opening this repository in Claude Code instead? The skill auto-loads from
+`.claude/skills/` — just ask: *"run a brand AI readiness audit on
+example.com"*.
+
+Run the test suite with `pytest -q` (102 tests, no network required).
+
 ## Quickstart
 
 ```bash
@@ -48,7 +67,9 @@ playwright install chromium
 braiaudit audit example.com --max-pages 5 --max-render-pages 3
 ```
 
-Useful flags: `--query "what does this product cost"` (repeatable — tests
+Useful flags: `--max-depth 2` (how far to follow internal links from the
+seed URLs — depth 1 is the main nav, depth 2 reaches product/detail pages),
+`--query "what does this product cost"` (repeatable — tests
 whether target queries are answerable, per `query-guided-discovery`),
 `--output report.json`, `--fail-on-critical` (nonzero exit if any critical
 finding is present, for CI gating on your own site).
@@ -66,7 +87,7 @@ a skills marketplace via `marketplace.json`) and ask:
 
 > "Run a brand AI readiness audit on example.com"
 
-Claude loads the root [`SKILL.md`](SKILL.md), sequences the five capability
+Claude loads the entrypoint skill [`skills/brand-ai-readiness-audit/SKILL.md`](skills/brand-ai-readiness-audit/SKILL.md), sequences the six capability
 skills under `skills/` via its own tool use (WebFetch, a browser tool,
 etc.) instead of the Python pipeline, and returns the same floor-schema
 JSON. Every skill's `SKILL.md` names the exact reference-implementation
@@ -74,20 +95,58 @@ module and script it corresponds to, if you want to compare behavior or
 run the deterministic parts directly instead of re-deriving them via
 tool calls.
 
+## The marketplace: seven skills, one entrypoint
+
+`marketplace.json` lists every skill and marks exactly one as the entrypoint.
+Each skill folder holds an agentskills.io-compliant `SKILL.md` (frontmatter
+with `name`, `description`, `allowed-tools`, `license`), with detailed
+knowledge pushed to `references/` and executable checks to `scripts/`.
+
+| Skill | Concern it owns |
+| --- | --- |
+| **`brand-ai-readiness-audit`** *(entrypoint)* | Receives the audit request, enforces preconditions, sequences the six skills below, and emits the single audit report. The only skill that produces the final JSON. |
+| `website-observer` | One cheap JS-free HTTP pass: status, headers, `robots.txt` evaluated against every AI answer-engine crawler, `sitemap.xml`, static-HTML metrics, JSON-LD parsing, internal-link extraction. |
+| `crawl-render-audit` | Headless Chromium only where static signals justify it: scroll-driven lazy load, tab/accordion interaction, Shadow DOM, JS navigation traps. Optional — degrades to a declared coverage gap. |
+| `content-cleaner` | Boilerplate and overlay removal, main-content scoring, semantic-structure and question-register analysis, above-the-fold answer density. |
+| `query-guided-discovery` | Whether a target question is answerable at all: link-graph scoring, multi-page fragmentation, orphaned pages. |
+| `failure-diagnostics` | The shared brain. Maps raw signals onto the Web Failure Ontology (`references/ontology.yaml`) to produce named, severity-scored findings. Owns no I/O. |
+| `freshness-corroboration` | Cross-page corroboration, coverage and structural meta-analysis, and final schema-conformant assembly. |
+
+### How the entrypoint composes them
+
+The entrypoint owns sequencing and hand-off contracts, not detection. It
+runs **observe → render (conditional) → clean → discover → diagnose →
+corroborate**, and the separation is real rather than cosmetic:
+
+- **Only `website-observer` and `crawl-render-audit` touch the network.**
+  `content-cleaner`, `failure-diagnostics` and `freshness-corroboration` are
+  pure transforms over data already collected, which is why they are
+  deterministic and unit-testable without mocking HTTP.
+- **Only `failure-diagnostics` decides what counts as a problem.** Every
+  other skill emits raw signal strings and never a verdict, so severity
+  policy lives in exactly one file — a new failure mode is a YAML edit, not
+  a code change.
+- **Only `freshness-corroboration` emits the report.** Findings are grouped
+  by failure mode rather than repeated per page, so a sitewide issue is one
+  entry with a corroboration ratio.
+- **`crawl-render-audit` is skipped by default**, and its absence is
+  reported as an explicit coverage gap rather than passed off as clean.
+
 ## Architecture
 
 ```
 brand-ai-readiness-audit/
-├── SKILL.md                          # Master Orchestrator Skill
 ├── README.md                         # This file
-├── marketplace.json                  # Manifest listing all active skills
+├── marketplace.json                  # Manifest: every skill + the one entrypoint
 ├── pyproject.toml                    # `braiaudit` package definition
 ├── schemas/                          # JSON Schemas for every I/O contract (source of truth)
 ├── src/braiaudit/                    # Reference implementation, one module per skill
-├── tests/                            # pytest suite (70 tests) + HTML fixtures
+├── tests/                            # pytest suite (102 tests) + HTML fixtures
 ├── tools/lint_skills.py              # CI-enforced SKILL.md / ontology / marketplace linter
 ├── .github/workflows/ci.yml          # lint + skill-lint + schema-validate + pytest, py3.10–3.13
 └── skills/
+    ├── brand-ai-readiness-audit/     # ENTRYPOINT — composes the six below
+    │   └── SKILL.md
     ├── website-observer/
     │   ├── SKILL.md                  # Low-overhead HTTP/DOM inspection
     │   └── scripts/observe.py
@@ -165,8 +224,9 @@ website-observer  crawl-render- content-cleaner  query-guided-   failure-
    missing from the site's link graph *and* its sitemap.
 5. **`failure-diagnostics`** — the shared brain: maps every raw signal
    bundle from the steps above onto the **Web Failure Ontology**
-   (`skills/failure-diagnostics/references/ontology.yaml`, 17 failure modes
-   across 5 categories) to produce named, severity-scored findings with
+   (`skills/failure-diagnostics/references/ontology.yaml`, 41 failure modes
+   — 38 scored defects plus 3 unscored limitations — across 5 categories and 4
+   brand-facing axes) to produce named, severity-scored findings with
    suggested remediations. A failure mode fires only on its declared
    `match_mode` (`all` signals together, or `any` one of them) — never on a
    weaker partial overlap; see the ontology file's header comment.
@@ -203,35 +263,40 @@ Every audit run emits (via `freshness-corroboration` /
 ```json
 {
   "site": "example.com",
-  "audited_at": "2026-09-02T00:00:00Z",
-  "summary": {
-    "total_findings": 3,
-    "critical": 1,
-    "high": 1,
-    "medium": 1
+  "audited_at": "2026-09-05T00:00:00Z",
+  "summary": { "total_findings": 3, "critical": 1, "high": 1, "medium": 1 },
+  "readiness": {
+    "score": 58,
+    "by_axis": {
+      "visibility":  { "score": 63, "findings": 2 },
+      "staleness":   { "score": 95, "findings": 1 },
+      "engagement":  { "score": 100, "findings": 0 },
+      "identity":    { "score": 100, "findings": 0 }
+    },
+    "formula": "100 minus 25 per critical, 12 per high, 5 per medium and 2 per low finding, floored at 0. Proactive suggestions never affect the score."
   },
   "findings": [
     {
       "id": "F-001",
-      "title": "Robots.txt Rules Block AI Scrapers",
+      "title": "Robots.txt Blocks AI Answer-Engine Crawlers",
       "severity": "critical",
-      "evidence": "robots.txt: 'User-agent: * Disallow: /' on https://example.com/robots.txt",
-      "suggested_action": {
-        "summary": "Allow the audited/target AI user-agent(s) on public marketing routes, or scope Disallow rules to private paths only.",
-        "priority": "critical"
-      }
+      "axis": "visibility",
+      "evidence": "robots.txt disallows 2 AI crawler(s): ClaudeBot, GPTBot, while still allowing Bingbot, Googlebot (confirmed on 1/1 page(s) attempted)",
+      "suggested_action": { "summary": "...", "priority": "critical" },
+      "affected_urls": ["https://example.com/"],
+      "category": "compliance_and_access"
     }
   ],
-  "meta": {
-    "coverage": {
-      "overall_coverage_pct": 82.4,
-      "skills_engaged": ["website-observer", "content-cleaner", "query-guided-discovery", "pipeline"],
-      "categories": {
-        "rendering_and_execution": { "coverage_pct": 60.0, "not_evaluated": ["SHADOW_DOM_ENCAPSULATION", "DYNAMIC_INTERACTION_BARRIER"] }
-      }
-    },
-    "validation": { "passed": true, "checks": ["... 6 structural self-checks ..."], "notes": [] }
-  }
+  "suggested_actions": [
+    { "id": "A-001", "priority": "critical", "axis": "visibility",
+      "summary": "Remove or narrow the Disallow rules for GPTBot and ClaudeBot...",
+      "rationale": "Addresses F-001: Robots.txt Blocks AI Answer-Engine Crawlers.",
+      "derived_from": "F-001" },
+    { "id": "A-004", "priority": "high", "axis": "staleness",
+      "summary": "Add dateModified and datePublished to the JSON-LD on every page whose facts change...",
+      "rationale": "Without a machine-readable date, a 2019 snapshot and a 2024 page look equally current...",
+      "derived_from": "proactive" }
+  ]
 }
 ```
 
@@ -244,7 +309,7 @@ above) — the same findings array either way, but a very different claim.
 ## Testing & quality
 
 ```bash
-pytest -q                                    # 70 tests, no network required
+pytest -q                                    # 102 tests, no network required
 ruff check src tests tools                   # lint
 python tools/lint_skills.py                  # SKILL.md / ontology / marketplace lint
 braiaudit validate marketplace.json --schema marketplace

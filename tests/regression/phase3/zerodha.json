@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "site": "zerodha.com",
+  "mode": "blind",
+  "generated_at": "2026-09-09T20:36:28Z",
+  "verified_facts": {
+    "official_domain": {
+      "value": "zerodha.com",
+      "status": "verified",
+      "source": "phase2_report.site_info.domain"
+    },
+    "brand_name": {
+      "value": "Zerodha",
+      "status": "verified",
+      "source": "caller_supplied"
+    },
+    "legal_name": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    },
+    "location": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    },
+    "products": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    },
+    "operator": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    }
+  },
+  "questions": [
+    {
+      "id": "brand_identity",
+      "question": "What is Zerodha?",
+      "answer": "Zerodha is an Indian discount stockbroker, generally the largest retail broker in India by number of active clients. It was founded in 2010 by Nithin Kamath and Nikhil Kamath and is based in Bengaluru.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_offering",
+      "question": "What does Zerodha offer?",
+      "answer": "Zerodha offers brokerage for equities, futures and options, currency and commodities, with zero brokerage on equity delivery trades and a flat fee per order for intraday and F&O. Its products include the Kite trading platform, Coin for direct mutual funds, Console for reporting, and Varsity for investor education.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_products",
+      "question": "What products or services is Zerodha known for?",
+      "answer": "Zerodha is known for its Kite trading platform, its discount brokerage pricing model, Coin for direct mutual funds, and Varsity, its free investor-education resource. It is also known for being bootstrapped and profitable without external venture funding.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_location",
+      "question": "Where is Zerodha based?",
+      "answer": "Zerodha is based in Bengaluru, Karnataka, India.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_domain",
+      "question": "What is Zerodha's official website?",
+      "answer": "Zerodha's official website is zerodha.com.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_operator",
+      "question": "Who owns or operates Zerodha?",
+      "answer": "Zerodha was founded and is owned by the brothers Nithin Kamath and Nikhil Kamath. Nithin Kamath has served as CEO. The company is bootstrapped and has not taken external venture capital.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    }
+  ],
+  "summary": {
+    "questions_asked": 6,
+    "questions_evaluated": 6,
+    "not_evaluated": 0,
+    "consistent": 6,
+    "discrepancies": 0
+  },
+  "timing": {
+    "total_ms": 0.0,
+    "query_count": 6
+  },
+  "disclaimer": "Observational only. Not scored, not merged into the Phase 2 audit report, and not evidence about the website's own AI-readiness \u2014 this measures what an assistant already represents, which is provider- and time-dependent and is not guaranteed to be reproducible run to run."
+}

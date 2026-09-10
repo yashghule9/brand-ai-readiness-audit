@@ -12,7 +12,11 @@ def test_audit_subcommand_parses_defaults():
     args = parser.parse_args(["audit", "example.com"])
     assert args.site == "example.com"
     assert args.max_pages == 15
-    assert args.max_render_pages == 5
+    # Rendering dominates runtime (~20-25s/page), so the default is kept low
+    # enough that a typical audit finishes inside the 5-minute budget.
+    assert args.max_render_pages == 3
+    assert args.max_depth == 2
+    assert args.max_runtime == 240.0
     assert args.no_render is False
 
 

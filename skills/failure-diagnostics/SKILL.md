@@ -1,6 +1,8 @@
 ---
 name: failure-diagnostics
 description: Maps raw technical signals collected by other skills (website-observer, crawl-render-audit, content-cleaner, query-guided-discovery) onto the Web Failure Ontology knowledge base (references/ontology.yaml) to produce scored, human-readable audit findings with severity, evidence, and suggested remediation. Use whenever you have a signal bundle (e.g. "raw_text_length < 500 and script_count > 15" or "robots_txt_disallow") and need to classify it into a named failure mode for the audit report — this is the shared classification brain every other skill routes signals through.
+allowed-tools: Bash, Read
+license: MIT
 ---
 
 # Failure Diagnostics
@@ -12,6 +14,22 @@ description: Maps raw technical signals collected by other skills (website-obser
 > [schemas/ontology.schema.json](../../schemas/ontology.schema.json); findings
 > are validated against
 > [schemas/failure-diagnostics.output.schema.json](../../schemas/failure-diagnostics.output.schema.json).
+
+## Two Knowledge Bases In One File
+
+`references/ontology.yaml` holds both halves of the audit's advice:
+
+- `failure_modes` — signal patterns that constitute a defect. Each declares
+  an `axis`, and a `remediation` written **for the site owner**. Note that
+  `recovery_strategy` / `recommended_tool` name *this auditor's* next step
+  ("crawl-render-audit", "playwright") and must never be surfaced to a brand
+  as advice — use `remediation`.
+- `opportunities` — proactive recommendations emitted independently of any
+  detected defect, so a clean audit still returns useful advice. Each is
+  dropped when one of its `suppressed_by` failure modes fired, since that
+  finding's own remediation is the more specific guidance. Opportunities
+  carry no evidence and never affect the readiness score: they are advice,
+  not observations about the site.
 
 ## Operational Mission
 

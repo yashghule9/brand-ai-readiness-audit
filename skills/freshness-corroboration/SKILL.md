@@ -1,6 +1,8 @@
 ---
 name: freshness-corroboration
 description: Assembles all evidence and findings gathered across the audit pipeline (website-observer, crawl-render-audit, content-cleaner, query-guided-discovery, failure-diagnostics) into the final structured JSON audit report — deduplicating and corroborating repeated findings across pages so a single-page fluke doesn't get reported as a site-wide problem, computing summary severity counts, timestamping the audit, and validating the result against the audit report floor schema. Use as the LAST step of a Brand AI Readiness Audit, once every other skill has run and raw findings need to be compiled into the final output.
+allowed-tools: Bash, Read
+license: MIT
 ---
 
 # Freshness & Corroboration

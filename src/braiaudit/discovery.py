@@ -66,7 +66,7 @@ def discover(
             all_signals.add("partial_answer_match")
 
         if seed_completeness < ANSWER_THRESHOLD and internal_links:
-            link_proxy_text = {url: _url_to_proxy_text(url) for url in internal_links}
+            link_proxy_text = {url: url_proxy_text(url) for url in internal_links}
             ranked = relevance.rank_candidates(query, link_proxy_text)
             entry["candidate_pages_ranked"] = [
                 {"url": url, "relevance_score": score} for url, score in ranked
@@ -118,7 +118,7 @@ def discover(
     return result
 
 
-def _url_to_proxy_text(url: str) -> str:
+def url_proxy_text(url: str) -> str:
     """Before a candidate page is actually fetched, its URL path is the
     only relevance signal available — turn /pricing/enterprise-plan into
     'pricing enterprise plan' for the bag-of-words scorer."""

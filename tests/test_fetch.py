@@ -102,3 +102,309 @@ def test_soft_404_detected_on_200_status(fixture_html):
 
     assert result["soft_404_suspected"] is True
     assert "soft_404_suspected" in result["signals"]
+
+
+# ---------------------------------------------------------------------------
+# Soft-404: an error stub served at HTTP 200 must never be read as the site's
+# own content. Found live on iitb.ac.in, whose apex returned 200 carrying
+# "404 Unknown host"; the audit analysed it as the institution's homepage and
+# produced seven content and identity findings from a page that was not the
+# institution's at all.
+#
+# Detection is deliberately two-part — phrase AND short body — because a
+# halt is destructive: see fetch._detect_soft_404.
+# ---------------------------------------------------------------------------
+
+_SOFT_404_FINDING = "Soft 404 Returns Success Status For Missing Content"
+
+# Real prose, long enough to be unmistakably an article rather than a stub.
+_DOCS_PARAGRAPH = (
+    "The HTTP 404 Not Found response status code indicates that the server "
+    "cannot find the requested resource. Links that lead to a 404 page are "
+    "often called broken or dead links and can be subject to link rot. A 404 "
+    "status code only indicates that the resource is missing: not whether the "
+    "absence is temporary or permanent. If a resource is permanently removed, "
+    "use the 410 Gone status instead. Browsers display this response when a "
+    "page not found condition occurs, and servers may return a custom page "
+    "not found document explaining the problem to the reader. Search engines "
+    "treat a soft 404 - a page that says not found while returning 200 - as a "
+    "crawl quality problem, because the status line and the body disagree "
+    "about whether anything is there. "
+)
+
+
+# Above _SOFT_404_MAX_TEXT, so it reads as the article it is rather than a
+# stub that happens to name the phrases.
+_LONG_ARTICLE = _DOCS_PARAGRAPH * 2
+
+
+def test_hosting_soft_404_is_detected_on_a_short_body():
+    """CASE A. The iitb.ac.in family: the origin never resolved the vhost and
+    the edge returned its own stub at 200."""
+    from braiaudit.fetch import _detect_soft_404
+
+    assert _detect_soft_404(200, "404 Unknown host", "404 Unknown host") is True
+    assert _detect_soft_404(200, "", "No such host at this address") is True
+    assert _detect_soft_404(200, "", "default backend - 404") is True
+
+
+def test_application_soft_404_still_detected():
+    """CASE B. The original client-side-router family must keep working —
+    adding corroboration must not silently disable the existing detector."""
+    from braiaudit.fetch import _detect_soft_404
+
+    assert (
+        _detect_soft_404(
+            200,
+            "Page Not Found",
+            "Sorry, we couldn't find that page. It may have been moved.",
+        )
+        is True
+    )
+    # Status still gates everything: a real 404 is not a *soft* 404.
+    assert _detect_soft_404(404, "Page Not Found", "Page not found") is False
+
+
+def test_long_documentation_page_about_404s_is_not_a_soft_404():
+    """CASE C. The false-positive that matters. A page documenting HTTP status
+    codes contains every phrase the detector looks for — and this corpus
+    audits documentation sites. Length is what separates a page *about* 404s
+    from a page that *is* one."""
+    from braiaudit.fetch import _SOFT_404_MAX_TEXT, _detect_soft_404
+
+    article = _DOCS_PARAGRAPH * 4
+    assert len(article) > _SOFT_404_MAX_TEXT
+    assert "404 not found" in article.lower()
+    assert "page not found" in article.lower()
+
+    assert _detect_soft_404(200, "404 Not Found - HTTP | MDN", article) is False
+
+
+def test_short_page_mentioning_404_terminology_is_accepted_as_a_soft_404():
+    """CASE D, documented rather than asserted-around: a *short* page carrying
+    the phrase IS classified as a soft 404, and that is the deliberate trade.
+
+    Below the length threshold the detector cannot distinguish a terse note
+    about 404s from an actual error stub — nothing observable separates them.
+    The bias is chosen: a short page has almost no content to lose by being
+    halted, while analysing a real stub fabricates findings against the brand.
+    A site wanting such a page audited should give it enough substance to
+    clear the threshold, which is also what would make it useful to a reader."""
+    from braiaudit.fetch import _SOFT_404_MAX_TEXT, _detect_soft_404
+
+    terse = "Our 404 Not Found page explains what to do next."
+    assert len(terse) < _SOFT_404_MAX_TEXT
+    assert _detect_soft_404(200, "About our error pages", terse) is True
+
+
+def test_soft_404_haystack_is_visible_text_not_markup():
+    """Markup is the wrong haystack: an href, a CSS class or inline JSON can
+    carry the phrase without a reader ever seeing it. Detection reads what
+    `observe()` extracts, so a page whose only 'page not found' lives in a
+    link target is analysed normally."""
+    import responses
+
+    from braiaudit.fetch import observe
+
+    @responses.activate
+    def run() -> dict:
+        responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+        responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+        responses.add(
+            responses.GET,
+            "https://example.com/",
+            body=(
+                "<html><head><title>Example Tools</title></head><body><main>"
+                '<a href="/page-not-found-handler">Support</a>'
+                '<div class="page-not-found-banner"></div>'
+                "<p>" + _LONG_ARTICLE + "</p></main></body></html>"
+            ),
+            status=200,
+            content_type="text/html",
+        )
+        return observe("https://example.com/", user_agent="TestBot/1.0")
+
+    assert run()["soft_404_suspected"] is False
+
+
+@__import__("responses").activate
+def test_soft_404_halts_before_any_content_conclusion_is_drawn(monkeypatch):
+    """CASE E, the half that actually fixes iitb. Detecting the stub was never
+    enough — the pipeline detected soft 404s already and analysed them anyway.
+    Nothing downstream may treat the stub as site evidence: no render, no
+    discovery, no corroboration, and above all no content or identity
+    findings invented from a page that is not the site."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    rendered: list[str] = []
+
+    def spy_render(url, *args, **kwargs):
+        rendered.append(url)
+        return {"available": False, "signals": []}
+
+    monkeypatch.setattr("braiaudit.pipeline.render.render", spy_render)
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><head><title>404 Unknown host</title></head>"
+        "<body>404 Unknown host</body></html>",
+        status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=2, corroborate=True),
+    )
+
+    # The browser is never launched for a page we refused to read.
+    assert rendered == []
+
+    titles = {f["title"] for f in report["findings"]}
+
+    # The one true observation survives: a 200 carrying an error stub.
+    assert _SOFT_404_FINDING in titles
+
+    # And nothing was concluded about content or identity from that stub.
+    # These are exactly the seven iitb.ac.in produced.
+    fabricated = {
+        "No Machine-Readable Contact Or Location Details",
+        "No Schema.org / JSON-LD Structured Data Available",
+        "No Public Entity Record Corroborates This Brand",
+        "Public Entity Record Does Not Point Back To This Site",
+        "Content Is Not Written In The Register Users Ask Questions In",
+        "Page Has No Meta Description",
+        "Sitemap Change Dates Carry No Information",
+        "Last-Modified Header Is Missing Or Long Out Of Date",
+        "Page Does Not State What It Is",
+    }
+    assert not (titles & fabricated), titles & fabricated
+
+    # Corroboration must not have used the stub as evidence of the brand.
+    assert report["site_info"]["brand_name_candidates"] == []
+    assert report["meta"]["crawl"]["pages_rendered"] == 0
+
+    # P0 semantics hold on top: the stub is not analysable content, so the
+    # audit abstains rather than scoring the brand on a page it never read.
+    assert report["summary"]["readiness_score"] is None
+    assert "No Page Yielded Content This Audit Could Analyse" in {
+        lim["title"] for lim in report["audit_limitations"]
+    }
+
+
+@__import__("responses").activate
+def test_normal_page_is_unaffected_by_the_soft_404_halt():
+    """The halt must be narrow: a real page carrying real content is analysed
+    exactly as before, scored, and never halted."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body=(
+            "<html><head><title>Example Tools</title></head><body><main>"
+            "<h1>Example Tools</h1><p>" + _LONG_ARTICLE + "</p></main></body></html>"
+        ),
+        status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    assert _SOFT_404_FINDING not in {f["title"] for f in report["findings"]}
+    assert report["meta"]["crawl"]["pages_crawled"] == 1
+    assert report["summary"]["readiness_score"] is not None
+
+
+def test_short_error_status_stub_is_not_analysed_as_content():
+    """The iitb.ac.in case as it actually is, corrected from the Stage 5
+    write-up: the apex returns HTTP **404** (not 200) with 104 characters of
+    "404 Unknown host". Two guards existed — a bodiless 4xx, and 403/503 with
+    a body — and a short-bodied 404 fell between them into full content
+    analysis, producing seven findings about a page belonging to no one.
+
+    Length decides, not status: nothing this short describes a site."""
+    import responses
+
+    from braiaudit.fetch import observe
+
+    @responses.activate
+    def run() -> dict:
+        responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+        responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+        responses.add(
+            responses.GET,
+            "https://example.com/",
+            body="<html><head><title>404 Unknown host</title></head>"
+            "<body>404 Unknown host</body></html>",
+            status=404,
+            content_type="text/html",
+        )
+        return observe("https://example.com/", user_agent="TestBot/1.0")
+
+    result = run()
+
+    assert result["http_status"] == 404
+    assert "http_error_status_blocked" in result["signals"]
+
+    # None of the content or identity signals may be emitted about a stub.
+    fabricated = {
+        "missing_schema_org",
+        "contact_details_absent",
+        "meta_description_absent",
+        "last_modified_stale_or_absent",
+        "sitemap_lastmod_meaningless",
+        "no_page_identifying_heading",
+        "canonical_missing",
+    }
+    assert not (set(result["signals"]) & fabricated), set(result["signals"]) & fabricated
+
+
+@__import__("responses").activate
+def test_error_stub_seed_yields_an_access_finding_and_no_fabricated_defects():
+    """End to end, the shape iitb.ac.in should have produced all along: one
+    honest access finding, no content or identity accusations, and — via P0,
+    since a stub is not analysable content — an abstained score rather than
+    the 90 it was awarded."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><head><title>404 Unknown host</title></head>"
+        "<body>404 Unknown host</body></html>",
+        status=404,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=2, corroborate=True),
+    )
+
+    titles = {f["title"] for f in report["findings"]}
+    assert titles == {"Page Returns An Error Status With No Retrievable Content"}, titles
+
+    assert report["summary"]["readiness_score"] is None
+    assert "No Page Yielded Content This Audit Could Analyse" in {
+        lim["title"] for lim in report["audit_limitations"]
+    }
+    assert report["meta"]["crawl"]["pages_rendered"] == 0
+    # The stub's title must never become a brand name for the site.
+    assert report["site_info"]["brand_name_candidates"] == []

@@ -21,6 +21,7 @@ def test_all_skills_engaged_yields_full_coverage():
         "query-guided-discovery",
         "query-guided-discovery:target_queries",
         "crawl-render-audit",
+        "offsite-corroboration",
         "pipeline",
     }
     result = compute_coverage(engaged_skills=all_sources)

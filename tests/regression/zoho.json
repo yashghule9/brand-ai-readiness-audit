@@ -1,0 +1,593 @@
+{
+  "schema_version": "2.0",
+  "site": "zoho.com",
+  "audited_at": "2026-09-09T20:58:16Z",
+  "site_info": {
+    "domain": "zoho.com",
+    "url": "https://zoho.com/",
+    "brand_name_candidates": [
+      "Zoho",
+      "Zoho | Cloud Software Suite for Businesses",
+      "Explore All Products | Zoho",
+      "Zoho | About Us",
+      "Zia Agents\u00e2\u0080\u0094Zoho's Unified AI For Your Entire Business.",
+      "Zoho Blog",
+      "Strengthening our commitment to the UAE with new Data Centres in Abu Dhabi and Dubai - Zoho Blog",
+      "Zoho Customer Success Stories & Testimonials",
+      "Customizable enterprise software by Zoho",
+      "Mercedes-Benz India and Zoho launches \u00e2\u0080\u0098SKYLine\u00e2\u0080\u0099, a bespoke and decentralized Dealer Management System, redefining customer experience by offering a state-of-art seamless and integrated customer journey",
+      "Zoho One | The Operating System for Business",
+      "Our Story | Zoho",
+      "Zoho | Our Privacy Commitment",
+      "Zoho keeps your business moving forward \u00f0\u009f\u0087\u00ae\u00f0\u009f\u0087\u00b3",
+      "Create New Account | Sign up to Zoho",
+      "It takes time | Zoho",
+      "Discover how Zoho stands out | Compare alternatives"
+    ],
+    "declared_brand_name": "Zoho",
+    "organization_legal_name": "",
+    "organization_same_as": []
+  },
+  "provenance": [],
+  "summary": {
+    "total_findings": 14,
+    "critical": 0,
+    "high": 3,
+    "medium": 9,
+    "readiness_score": 72,
+    "by_axis": {
+      "visibility": {
+        "score": 85,
+        "findings": 4,
+        "evidence_basis": {
+          "modes_fired": 4,
+          "modes_possible": 16
+        }
+      },
+      "staleness": {
+        "score": 62,
+        "findings": 3,
+        "evidence_basis": {
+          "modes_fired": 3,
+          "modes_possible": 7
+        }
+      },
+      "engagement": {
+        "score": 29,
+        "findings": 5,
+        "evidence_basis": {
+          "modes_fired": 5,
+          "modes_possible": 8
+        }
+      },
+      "identity": {
+        "score": 60,
+        "findings": 2,
+        "evidence_basis": {
+          "modes_fired": 2,
+          "modes_possible": 7
+        }
+      }
+    },
+    "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. Axes are scored against themselves and never normalised against each other. null means nothing on that axis could be evaluated. Adding failure modes changes an axis's denominator, so scores are comparable only between runs with the same schema_version. Opportunities and audit limitations never affect the score.",
+    "headline": "14 issue(s) were found across 15 page(s) of zoho.com, most of them on engagement (5 of 14).",
+    "top_priorities": [
+      {
+        "ref": "F-001",
+        "priority": "high",
+        "summary": "Non-Standard Navigation Links Are Invisible To Crawlers",
+        "type": "finding"
+      },
+      {
+        "ref": "F-002",
+        "priority": "high",
+        "summary": "No Freshness Signal Distinguishes Current Facts From Old Ones",
+        "type": "finding"
+      },
+      {
+        "ref": "F-003",
+        "priority": "high",
+        "summary": "Public Entity Record Does Not Point Back To This Site",
+        "type": "finding"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Non-Standard Navigation Links Are Invisible To Crawlers",
+      "severity": "high",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.zoho.com/signup.html?src=zindex.",
+      "suggested_action": {
+        "summary": "Give every navigable destination a real anchor with an href to a resolvable path. Replace onclick-driven <div>s and href=\"javascript:void(0)\" with anchors that resolve server-side \u2014 keep the JavaScript handler if the app needs it, but let the href be the source of truth so crawlers can walk the link graph.",
+        "priority": "high"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/signup.html?src=zindex"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-002",
+      "title": "No Freshness Signal Distinguishes Current Facts From Old Ones",
+      "severity": "high",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://zoho.com/.",
+      "suggested_action": {
+        "summary": "Add dateModified and datePublished to the JSON-LD of every page whose facts change, and show a visible \"last updated\" line for the human reader. Keep sitemap lastmod values accurate on each edit, and ping IndexNow on publish so crawlers are alerted rather than waiting for their next scheduled pass.",
+        "priority": "high"
+      },
+      "affected_urls": [
+        "https://zoho.com/"
+      ],
+      "category": "semantic_deficit",
+      "axis": "staleness",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-003",
+      "title": "Public Entity Record Does Not Point Back To This Site",
+      "severity": "high",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://zoho.com/.",
+      "suggested_action": {
+        "summary": "Determine whether the record describes this brand or a different one. If it is this brand, correct its official-website property to the current domain. If it is a different entity sharing the name, create a distinct record for this brand with disambiguating context \u2014 industry, founding date, registered address \u2014 and link it from the site's Organization schema via sameAs so the two are separable.",
+        "priority": "high"
+      },
+      "affected_urls": [
+        "https://zoho.com/"
+      ],
+      "category": "semantic_deficit",
+      "axis": "identity",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-004",
+      "title": "Lazy-Loaded Content Requires Scroll Interaction To Appear",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 5/15 exhibit this failure mode, e.g. https://www.zoho.com/aboutus.html?src=zindex.",
+      "suggested_action": {
+        "summary": "Put below-the-fold text in the initial HTML and reserve lazy loading for images via native loading=\"lazy\", rather than injecting text nodes on scroll. Where an intersection-observer pattern must stay, ship the same content in the server response (or a <noscript> block) so a non-scrolling crawler still reads it.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/aboutus.html?src=zindex",
+        "https://www.zoho.com/agents?src=zindex",
+        "https://www.zoho.com/all-products.html?src=zindex",
+        "https://www.zoho.com/one?src=zindex",
+        "https://www.zoho.com/time?src=zindex"
+      ],
+      "category": "rendering_and_execution",
+      "axis": "visibility",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-005",
+      "title": "Concrete Answers Are Buried Below The Opening Content",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 5/15 exhibit this failure mode, e.g. https://www.zoho.com/aboutus.html?src=zindex.",
+      "suggested_action": {
+        "summary": "Lead with the answer. Put price, availability and key specifications in the opening block of the page, above the fold and outside any accordion, then let the marketing narrative follow. A visitor who can confirm the fact in seconds stays; one who has to search again leaves.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/aboutus.html?src=zindex",
+        "https://www.zoho.com/compare-alternatives.html",
+        "https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html",
+        "https://www.zoho.com/privacy-commitment.html?src=zindex",
+        "https://zoho.com/"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-006",
+      "title": "Long Content Has Almost No Heading Structure",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html.",
+      "suggested_action": {
+        "summary": "Break long content with headings that name what each section answers, roughly one every few hundred words. This serves the scanning reader and the chunker at once \u2014 both are looking for the same boundaries.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html",
+        "https://www.zoho.com/signup.html?src=zindex"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-007",
+      "title": "Page Does Not State What It Is",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html.",
+      "suggested_action": {
+        "summary": "Give every page exactly one <h1> naming what the page is about, and a <title> that identifies both the page and the brand. Templates that render the site name alone in both places leave every page looking identical to a machine.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html"
+      ],
+      "category": "content_noise",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-008",
+      "title": "Content Is Not Written In The Register Users Ask Questions In",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 9/15 exhibit this failure mode, e.g. https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html.",
+      "suggested_action": {
+        "summary": "Add headings phrased the way customers ask: \"How much does the <product> cost?\", \"Which <product> is best for <use case>?\". Mirror real query phrasing rather than internal product naming, and answer immediately beneath each heading so the pairing is extractable as a unit.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html",
+        "https://www.zoho.com/customers.html?src=zindex",
+        "https://www.zoho.com/enterprise?src=zindex",
+        "https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html",
+        "https://www.zoho.com/one?src=zindex",
+        "https://www.zoho.com/privacy-commitment.html?src=zindex",
+        "https://www.zoho.com/r/moveforward.html?src=zindex",
+        "https://www.zoho.com/signup.html?src=zindex",
+        "https://www.zoho.com/time?src=zindex"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "visibility",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-009",
+      "title": "Information Fragmented Across Multiple Subpages",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.zoho.com/one?src=zindex.",
+      "suggested_action": {
+        "summary": "Consolidate the facts that answer one question onto one page: price, availability, key specs and the support path belong on the product page itself rather than scattered across separate pricing, FAQ and shipping pages. Assistants synthesise most reliably when a single retrieved document answers the question completely.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/one?src=zindex"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-010",
+      "title": "Sitemap Change Dates Carry No Information",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 15/15 exhibit this failure mode.",
+      "suggested_action": {
+        "summary": "Emit a per-URL <lastmod> reflecting when that page's content last changed, not when the sitemap was regenerated. Identical dates across every entry are worse than none, because they look informative and are not.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/aboutus.html?src=zindex",
+        "https://www.zoho.com/agents?src=zindex",
+        "https://www.zoho.com/all-products.html?src=zindex",
+        "https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html",
+        "https://www.zoho.com/compare-alternatives.html",
+        "https://www.zoho.com/customers.html?src=zindex",
+        "https://www.zoho.com/enterprise?src=zindex",
+        "https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html",
+        "https://www.zoho.com/one?src=zindex",
+        "https://www.zoho.com/ourstory.html?src=zindex",
+        "https://www.zoho.com/privacy-commitment.html?src=zindex",
+        "https://www.zoho.com/r/moveforward.html?src=zindex",
+        "https://www.zoho.com/signup.html?src=zindex",
+        "https://www.zoho.com/time?src=zindex",
+        "https://zoho.com/"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "staleness",
+      "confidence": "high",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-011",
+      "title": "No Machine-Readable Contact Or Location Details",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 13/15 exhibit this failure mode, e.g. https://www.zoho.com/aboutus.html?src=zindex.",
+      "suggested_action": {
+        "summary": "Publish contact details in markup, not only in an image or a contact form: a tel/mailto link, a postal address, or ContactPoint structured data. Keep the same details across every directory listing so the signature is consistent wherever it is encountered.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/aboutus.html?src=zindex",
+        "https://www.zoho.com/all-products.html?src=zindex",
+        "https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html",
+        "https://www.zoho.com/compare-alternatives.html",
+        "https://www.zoho.com/customers.html?src=zindex",
+        "https://www.zoho.com/enterprise?src=zindex",
+        "https://www.zoho.com/one?src=zindex",
+        "https://www.zoho.com/ourstory.html?src=zindex",
+        "https://www.zoho.com/privacy-commitment.html?src=zindex",
+        "https://www.zoho.com/r/moveforward.html?src=zindex",
+        "https://www.zoho.com/signup.html?src=zindex",
+        "https://www.zoho.com/time?src=zindex",
+        "https://zoho.com/"
+      ],
+      "category": "semantic_deficit",
+      "axis": "identity",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-012",
+      "title": "No Schema.org / JSON-LD Structured Data Available",
+      "severity": "medium",
+      "evidence": "Crawled 15 page(s); 13/15 exhibit this failure mode, e.g. https://www.zoho.com/aboutus.html?src=zindex.",
+      "suggested_action": {
+        "summary": "Add JSON-LD to the primary templates: Organization (name, logo, foundingDate, sameAs) sitewide, Product plus Offer (name, sku, price, priceCurrency, availability, priceValidUntil) on product pages, FAQPage on support content, and BreadcrumbList for hierarchy. Structured triples let a retrieval pipeline bind a number to \"price\" rather than inferring it from prose, which is where wrong prices in AI answers come from.",
+        "priority": "medium"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/aboutus.html?src=zindex",
+        "https://www.zoho.com/agents?src=zindex",
+        "https://www.zoho.com/all-products.html?src=zindex",
+        "https://www.zoho.com/compare-alternatives.html",
+        "https://www.zoho.com/customers.html?src=zindex",
+        "https://www.zoho.com/enterprise?src=zindex",
+        "https://www.zoho.com/news/mercedes-benz-india-and-zoho-launches-skyline-a-bespoke-and-decentralized-dealer-management-system-redefining-customer-experience-by-offering-a-state-of-art-seamless-and-integrated-customer-journey.html",
+        "https://www.zoho.com/one?src=zindex",
+        "https://www.zoho.com/ourstory.html?src=zindex",
+        "https://www.zoho.com/privacy-commitment.html?src=zindex",
+        "https://www.zoho.com/r/moveforward.html?src=zindex",
+        "https://www.zoho.com/signup.html?src=zindex",
+        "https://www.zoho.com/time?src=zindex"
+      ],
+      "category": "semantic_deficit",
+      "axis": "visibility",
+      "confidence": "medium",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-013",
+      "title": "Deep Page Offers No Breadcrumb Trail",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html.",
+      "suggested_action": {
+        "summary": "Add a breadcrumb trail to templates below the top level, and mark it up as BreadcrumbList. It orients direct arrivals and gives extraction a cheap, reliable read on site hierarchy.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html",
+        "https://www.zoho.com/r/moveforward.html?src=zindex"
+      ],
+      "category": "discovery_and_pathing",
+      "axis": "engagement",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    },
+    {
+      "id": "F-014",
+      "title": "Last-Modified Header Is Missing Or Long Out Of Date",
+      "severity": "low",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html.",
+      "suggested_action": {
+        "summary": "Emit an accurate Last-Modified header for HTML responses, driven by when the content actually changed rather than by deploy time. If a CDN strips or rewrites it, fix that at the edge configuration.",
+        "priority": "low"
+      },
+      "affected_urls": [
+        "https://www.zoho.com/blog/general/uae-data-centres-abu-dhabi-dubai-launch.html"
+      ],
+      "category": "semantic_deficit",
+      "axis": "staleness",
+      "confidence": "low",
+      "source_type": "scored",
+      "signal_type": "field",
+      "parse_status": "ok"
+    }
+  ],
+  "audit_limitations": [],
+  "opportunities": [
+    {
+      "priority": "high",
+      "axis": "staleness",
+      "summary": "Add dateModified and datePublished to the JSON-LD on every page whose facts change, show a visible \"last updated\" line, and keep sitemap lastmod values accurate on each edit. Ping IndexNow (which Bing, and through it Copilot, consumes) on publish so updates are pulled promptly instead of waiting for the next crawl.",
+      "rationale": "Without a machine-readable date, a 2019 snapshot and a 2024 page look equally current to a retrieval pipeline, so the older and more-corroborated version tends to win. Freshness has to be stated, not implied by a redesign.",
+      "id": "O-001"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Audit and correct listings on the marketplaces and review sites that rank for your category queries, and make it easy for independent reviewers to be accurate \u2014 publish a press kit with spec sheets and current pricing. This is a corroboration play, not advertising: the goal is that facts about you exist, consistently, off your own domain.",
+      "rationale": "For category queries, live retrieval is dominated by marketplaces, review sites and forum threads rather than brand-owned domains. If a brand is absent or misdescribed on those surfaces, its own site can be flawless and still never enter the candidate set.",
+      "id": "O-002"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Keep a fixed panel of realistic prompts \u2014 category questions, direct brand questions, price and fact probes \u2014 and run them across the assistants your customers use on a regular cadence. Log whether the brand is named, whether it is cited with a source link, which URL is cited, and which competitors appear instead. Track share-of-voice and fact-accuracy over time; these are the KPIs the rest of this report is upstream of.",
+      "rationale": "Neither this audit nor any on-site change can tell you what an assistant actually says about the brand. That has to be sampled directly, and it is the only metric that measures the outcome rather than a proxy for it.",
+      "id": "O-003"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Open each key page with one plain sentence stating the fact a user would ask for, near the top and outside any accordion \u2014 for a product page, \"<product> costs <price> as of <date>.\" Keep the brand voice below it; put the extractable claim first.",
+      "rationale": "Assistants extract best from a single declarative sentence that states a fact outright. Marketing copy that circles a fact (\"engineered for flight\") gives a retrieval pipeline nothing to quote, so it either skips the page or paraphrases loosely.",
+      "id": "O-004"
+    },
+    {
+      "priority": "high",
+      "axis": "visibility",
+      "summary": "Publish content shaped like the questions being asked: category and comparison pages, \"best X for Y\" guides, and an FAQ page whose headings are verbatim user questions. Mirror real query phrasing in titles and H2s rather than internal product naming.",
+      "rationale": "People ask assistants comparative, price-bounded, colloquial questions (\"best running shoes under 6000 in India\"), not brand questions. Pages written only in brand vocabulary lose the retrieval race to third-party listicles that mirror the query's own phrasing.",
+      "id": "O-005"
+    },
+    {
+      "priority": "medium",
+      "axis": "engagement",
+      "summary": "Segment analytics by referrer class so AI-assistant arrivals are measurable separately from organic search and direct, and track bounce rate, scroll depth and conversion for that cohort. Watch server logs for the AI crawler user-agents too, to confirm they are actually fetching and how often.",
+      "rationale": "This audit observes the site from outside and cannot see who arrives or what they do next. Without first-party segmentation there is no way to tell whether engagement fixes worked.",
+      "id": "O-006"
+    },
+    {
+      "priority": "medium",
+      "axis": "identity",
+      "summary": "Claim a Wikidata entity with sameAs links to the official domain and verified profiles, and add disambiguating context to the on-site Organization schema: industry, foundingDate, registered address. Keep the brand descriptor identical across every directory and listing so the entity signature is consistent wherever it appears.",
+      "rationale": "A brand name shared with a larger entity (an airline, a mythological figure, an unrelated company) loses the disambiguation contest by default \u2014 the assistant resolves the name to whichever entity has stronger corroboration, and the brand vanishes from the answer even though its name was processed.",
+      "id": "O-007"
+    },
+    {
+      "priority": "medium",
+      "axis": "staleness",
+      "summary": "301 each retired product URL to its successor, and state the succession in body text on the destination page. Keep the sentence explicit enough to be quoted: \"<retired model> has been discontinued and is replaced by <successor>.\"",
+      "rationale": "Deleting a discontinued product's page destroys the update relationship between old and new facts. Crawlers see a dead end and keep trusting cached third-party copies of the old listing.",
+      "id": "O-008"
+    },
+    {
+      "priority": "medium",
+      "axis": "staleness",
+      "summary": "Publish a Press/Facts page carrying the current tagline, logo, founding date, leadership, product line and pricing, each with the date it took effect and the prior value it replaced. Link it from the footer so it is reachable from every page.",
+      "rationale": "Corrections propagate only if there is something quotable to propagate. A single dated page stating current brand facts gives every downstream surface \u2014 retrieval pipelines, journalists, directory editors \u2014 one authoritative thing to cite.",
+      "id": "O-009"
+    }
+  ],
+  "meta": {
+    "coverage": {
+      "ontology_version": "2.3",
+      "skills_engaged": [
+        "content-cleaner",
+        "crawl-render-audit",
+        "offsite-corroboration",
+        "pipeline",
+        "query-guided-discovery",
+        "query-guided-discovery:target_queries",
+        "website-observer"
+      ],
+      "categories": {
+        "rendering_and_execution": {
+          "label": "Rendering & Execution Failures",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "content_noise": {
+          "label": "Content Noise & Layout Distortions",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "discovery_and_pathing": {
+          "label": "Crawl Discovery & Pathing Failures",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "semantic_deficit": {
+          "label": "Semantic Deficit & Data Integrity",
+          "total_failure_modes": 16,
+          "evaluated_failure_modes": 16,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        },
+        "compliance_and_access": {
+          "label": "Compliance & Access Governance",
+          "total_failure_modes": 6,
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
+        }
+      },
+      "overall_coverage_pct": 100.0
+    },
+    "validation": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "no_duplicate_titles",
+          "passed": true,
+          "means": "every finding is for a distinct concept, not a re-report of another"
+        },
+        {
+          "name": "no_duplicate_ids",
+          "passed": true,
+          "means": "every finding has a unique id"
+        },
+        {
+          "name": "sequential_ids",
+          "passed": true,
+          "means": "ids are sequential F-001, F-002, ... with no gaps"
+        },
+        {
+          "name": "evidence_non_empty",
+          "passed": true,
+          "means": "every finding cites concrete, non-empty evidence"
+        },
+        {
+          "name": "severity_sorted",
+          "passed": true,
+          "means": "findings are ordered critical -> high -> medium -> low"
+        },
+        {
+          "name": "summary_matches_findings",
+          "passed": true,
+          "means": "the summary block's counts are recomputable from the findings array"
+        },
+        {
+          "name": "sequential_opportunity_ids",
+          "passed": true,
+          "means": "opportunity ids are sequential O-001, O-002, ... with no gaps"
+        },
+        {
+          "name": "every_finding_has_an_action",
+          "passed": true,
+          "means": "no problem is reported without telling the reader what to do about it"
+        }
+      ],
+      "notes": [
+        "2 findings affect exactly the same page(s) (https://zoho.com/) and may share a root cause rather than being independent problems: No Freshness Signal Distinguishes Current Facts From Old Ones; Public Entity Record Does Not Point Back To This Site."
+      ]
+    },
+    "crawl": {
+      "pages_crawled": 15,
+      "pages_unreachable": [],
+      "stopped_early": false,
+      "note": "",
+      "render_triggered": true,
+      "pages_rendered": 1
+    }
+  }
+}

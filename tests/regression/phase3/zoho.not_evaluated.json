@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "site": "zoho.com",
+  "mode": "blind",
+  "generated_at": "2026-09-09T20:54:23Z",
+  "verified_facts": {
+    "official_domain": {
+      "value": "zoho.com",
+      "status": "verified",
+      "source": "phase2_report.site_info.domain"
+    },
+    "brand_name": {
+      "value": "Zoho",
+      "status": "verified",
+      "source": "caller_supplied"
+    },
+    "legal_name": {
+      "value": null,
+      "status": "unavailable",
+      "source": "the site declares no legalName in its Organization JSON-LD"
+    },
+    "location": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "products": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "operator": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    }
+  },
+  "questions": [
+    {
+      "id": "brand_identity",
+      "question": "What is Zoho?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-09-09T20:54:23Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_offering",
+      "question": "What does Zoho offer?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-09-09T20:54:23Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_products",
+      "question": "What products or services is Zoho known for?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-09-09T20:54:23Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_location",
+      "question": "Where is Zoho based?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-09-09T20:54:23Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_domain",
+      "question": "What is Zoho's official website?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-09-09T20:54:23Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_operator",
+      "question": "Who owns or operates Zoho?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-09-09T20:54:23Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    }
+  ],
+  "summary": {
+    "questions_asked": 6,
+    "questions_evaluated": 0,
+    "not_evaluated": 6,
+    "consistent": 0,
+    "discrepancies": 0
+  },
+  "timing": {
+    "total_ms": 0.0,
+    "query_count": 6
+  },
+  "disclaimer": "Observational only. Not scored, not merged into the Phase 2 audit report, and not evidence about the website's own AI-readiness \u2014 this measures what an assistant already represents, which is provider- and time-dependent and is not guaranteed to be reproducible run to run."
+}

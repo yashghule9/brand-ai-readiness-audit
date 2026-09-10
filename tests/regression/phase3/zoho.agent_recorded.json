@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "site": "zoho.com",
+  "mode": "blind",
+  "generated_at": "2026-09-09T20:56:56Z",
+  "verified_facts": {
+    "official_domain": {
+      "value": "zoho.com",
+      "status": "verified",
+      "source": "phase2_report.site_info.domain"
+    },
+    "brand_name": {
+      "value": "Zoho",
+      "status": "verified",
+      "source": "caller_supplied"
+    },
+    "legal_name": {
+      "value": null,
+      "status": "unavailable",
+      "source": "the site declares no legalName in its Organization JSON-LD"
+    },
+    "location": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "products": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "operator": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    }
+  },
+  "questions": [
+    {
+      "id": "brand_identity",
+      "question": "What is Zoho?",
+      "answer": "Zoho is a software company best known for a large suite of business and productivity SaaS applications. It was founded in 1996 by Sridhar Vembu and Tony Thomas, originally under the name AdventNet.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_offering",
+      "question": "What does Zoho offer?",
+      "answer": "Zoho offers more than fifty integrated business applications, including Zoho CRM, Zoho Mail, Zoho Books, Zoho Desk, Zoho Projects, Zoho Creator, Zoho People and Zoho Analytics, as well as the bundled Zoho One suite.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_products",
+      "question": "What products or services is Zoho known for?",
+      "answer": "Zoho is best known for Zoho CRM and the bundled Zoho One suite. It is also known for being bootstrapped with no external funding, for locating offices in rural Tamil Nadu, for Zoho Schools of Learning as an alternative to university hiring, and for a privacy stance without ad-based revenue.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_location",
+      "question": "Where is Zoho based?",
+      "answer": "Zoho Corporation's global headquarters is in Austin, Texas, in the United States, having moved from Pleasanton, California. Its main Indian operations are in Chennai, Tamil Nadu, with a well-known campus in Tenkasi.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    },
+    {
+      "id": "brand_domain",
+      "question": "What is Zoho's official website?",
+      "answer": "Zoho's official website is zoho.com.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "verified_domain_matched"
+        ],
+        "basis": "deterministic",
+        "notes": "A verified value was compared against the answer and agreed: verified_domain_matched."
+      }
+    },
+    {
+      "id": "brand_operator",
+      "question": "Who owns or operates Zoho?",
+      "answer": "Zoho Corporation is privately held and majority owned by the Vembu family. Sridhar Vembu co-founded it and served as CEO for many years, moving to a Chief Scientist role, with Mani Vembu taking over as CEO.",
+      "status": "ok",
+      "provider": "agent-recorded (not a live API)",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:56:56Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [
+          "no_verified_fact_applicable"
+        ],
+        "basis": "heuristic",
+        "notes": "No verified fact was applicable to this question, so nothing was confirmed \u2014 only that no contradiction or confusion signal fired. The brand keyword was present."
+      }
+    }
+  ],
+  "summary": {
+    "questions_asked": 6,
+    "questions_evaluated": 6,
+    "not_evaluated": 0,
+    "consistent": 6,
+    "discrepancies": 0
+  },
+  "timing": {
+    "total_ms": 0.0,
+    "query_count": 6
+  },
+  "disclaimer": "Observational only. Not scored, not merged into the Phase 2 audit report, and not evidence about the website's own AI-readiness \u2014 this measures what an assistant already represents, which is provider- and time-dependent and is not guaranteed to be reproducible run to run."
+}

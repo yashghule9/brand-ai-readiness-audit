@@ -1,6 +1,8 @@
 ---
 name: crawl-render-audit
 description: Performs full headless-browser (Playwright/Chromium) rendering of a page — executing JavaScript, waiting for DOM-settle/network-idle, driving scroll to trigger lazy-loaded content, clicking through tabs/accordions/"Load More" controls, and traversing Shadow DOM trees — to capture the page as an AI agent with JS execution would actually see it. Use this when website-observer flags an app-shell/CSR page (low raw text, high script count, root container div), when content is gated behind lazy-load or required UI interaction, or when internal links use non-standard navigation (onclick/javascript:void handlers) that static parsing cannot follow.
+allowed-tools: Bash, Read
+license: MIT
 ---
 
 # Crawl & Render Audit

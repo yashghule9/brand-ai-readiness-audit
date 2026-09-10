@@ -5,7 +5,12 @@
   "description": "The authoritative floor schema for a Brand AI Readiness Audit final report. Every audit run MUST emit an object validating against this schema, produced by the freshness-corroboration skill.",
   "type": "object",
   "additionalProperties": true,
-  "required": ["site", "audited_at", "summary", "findings"],
+  "required": [
+    "site",
+    "audited_at",
+    "summary",
+    "findings"
+  ],
   "properties": {
     "site": {
       "type": "string",
@@ -20,21 +25,130 @@
     "summary": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["total_findings", "critical", "high", "medium"],
+      "required": [
+        "total_findings",
+        "critical",
+        "high",
+        "medium"
+      ],
       "properties": {
-        "total_findings": { "type": "integer", "minimum": 0 },
-        "critical": { "type": "integer", "minimum": 0 },
-        "high": { "type": "integer", "minimum": 0 },
-        "medium": { "type": "integer", "minimum": 0 }
+        "total_findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "critical": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "medium": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readiness_score": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "by_axis": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 100,
+                "description": "null when no mode on this axis could be evaluated \u2014 an absent score, not a perfect one."
+              },
+              "findings": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "evidence_basis": {
+                "type": "object",
+                "description": "How much of this axis was actually inspected, so thin-by-nature is distinguishable from thin-by-detector-count.",
+                "properties": {
+                  "modes_fired": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "modes_possible": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "score_formula": {
+          "type": "string"
+        },
+        "headline": {
+          "type": "string",
+          "description": "One sentence a non-expert can act on, stating what was checked as well as what was found."
+        },
+        "top_priorities": {
+          "type": "array",
+          "maxItems": 5,
+          "description": "The few highest-impact items to start with. A pointer into findings/opportunities, never a replacement for them.",
+          "items": {
+            "type": "object",
+            "required": [
+              "ref",
+              "priority",
+              "summary",
+              "type"
+            ],
+            "properties": {
+              "ref": {
+                "type": "string",
+                "description": "The F-00n or O-00n entry this points at."
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "finding",
+                  "opportunity"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "findings": {
       "type": "array",
-      "items": { "$ref": "#/$defs/finding" }
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
     },
     "meta": {
       "type": "object",
-      "description": "Optional meta-analysis block: ontology coverage measurement and structural validation of the findings/summary above. Additive — a report without it (e.g. from an older producer) still validates.",
+      "description": "Optional meta-analysis block: ontology coverage measurement and structural validation of the findings/summary above. Additive \u2014 a report without it (e.g. from an older producer) still validates.",
       "additionalProperties": true,
       "properties": {
         "coverage": {
@@ -42,32 +156,227 @@
           "description": "Which ontology failure modes could actually be evaluated this run, per category, given which skills/backends were engaged.",
           "additionalProperties": true,
           "properties": {
-            "ontology_version": { "type": "string" },
-            "skills_engaged": { "type": "array", "items": { "type": "string" } },
-            "overall_coverage_pct": { "type": "number", "minimum": 0, "maximum": 100 },
-            "categories": { "type": "object" }
+            "ontology_version": {
+              "type": "string"
+            },
+            "skills_engaged": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "overall_coverage_pct": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "categories": {
+              "type": "object"
+            }
           }
         },
         "validation": {
           "type": "object",
           "description": "Structural self-checks on this report (no duplicate/out-of-order ids, summary counts match the findings array, etc.) plus informational cross-finding correlation notes.",
           "additionalProperties": true,
-          "required": ["passed", "checks"],
+          "required": [
+            "passed",
+            "checks"
+          ],
           "properties": {
-            "passed": { "type": "boolean" },
+            "passed": {
+              "type": "boolean"
+            },
             "checks": {
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["name", "passed"],
+                "required": [
+                  "name",
+                  "passed"
+                ],
                 "properties": {
-                  "name": { "type": "string" },
-                  "passed": { "type": "boolean" },
-                  "means": { "type": "string" }
+                  "name": {
+                    "type": "string"
+                  },
+                  "passed": {
+                    "type": "boolean"
+                  },
+                  "means": {
+                    "type": "string"
+                  }
                 }
               }
             },
-            "notes": { "type": "array", "items": { "type": "string" } }
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "crawl": {
+          "type": "object",
+          "description": "What the crawl actually covered. `stopped_early` is true when a budget cut it short, so a partial crawl is never mistaken for a complete one.",
+          "properties": {
+            "pages_crawled": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pages_unreachable": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "stopped_early": {
+              "type": "boolean"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "audit_limitations": {
+      "type": "array",
+      "description": "Checks this audit could not complete \u2014 a missing render backend, an exhausted budget. These describe the audit, not the site: they never appear in findings and never affect the readiness score.",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "detail"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resolution": {
+            "type": "string"
+          },
+          "affected_urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this report's top-level shape."
+    },
+    "site_info": {
+      "type": "object",
+      "description": "Richer detail about what was audited. `site` and `audited_at` remain top-level scalars because the floor schema requires them there.",
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "brand_name_candidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Brand names the site declares in its own markup (Organization.name, og:site_name, <title>), most authoritative first. Machine-read from the site; not an independent verification of the entity's real-world identity."
+        },
+        "organization_legal_name": {
+          "type": "string",
+          "description": "legalName from the site's own Organization JSON-LD. Empty when the site declares none."
+        },
+        "organization_same_as": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "sameAs URLs from the site's own Organization JSON-LD."
+        },
+        "declared_brand_name": {
+          "type": "string",
+          "description": "The brand name the site deliberately declares (Organization.name or og:site_name). Excludes page <title>, which contains rather than states a brand name. Empty when the site declares neither."
+        }
+      }
+    },
+    "opportunities": {
+      "type": "array",
+      "description": "Proactive recommendations that apply whether or not a defect was found. Deliberately separate from `findings`: these carry no evidence and never affect the readiness score.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "priority",
+          "summary"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^O-[0-9]{3,}$"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "axis": {
+            "type": "string",
+            "enum": [
+              "visibility",
+              "staleness",
+              "engagement",
+              "identity"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "description": "Provenance for qualitative, unscored observations: what was asked, when, and by which model. Empty when the run carried none.",
+      "items": {
+        "type": "object",
+        "required": [
+          "observed_at",
+          "source"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "Model or agent that made the observation."
+          },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
           }
         }
       }
@@ -77,7 +386,13 @@
     "finding": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["id", "title", "severity", "evidence", "suggested_action"],
+      "required": [
+        "id",
+        "title",
+        "severity",
+        "evidence",
+        "suggested_action"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -91,7 +406,12 @@
         },
         "severity": {
           "type": "string",
-          "enum": ["critical", "high", "medium", "low"]
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
         },
         "evidence": {
           "type": "string",
@@ -101,14 +421,67 @@
         "suggested_action": {
           "type": "object",
           "additionalProperties": true,
-          "required": ["summary", "priority"],
+          "required": [
+            "summary",
+            "priority"
+          ],
           "properties": {
-            "summary": { "type": "string", "minLength": 1 },
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            },
             "priority": {
               "type": "string",
-              "enum": ["critical", "high", "medium", "low"]
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
             }
           }
+        },
+        "axis": {
+          "type": "string",
+          "enum": [
+            "visibility",
+            "staleness",
+            "engagement",
+            "identity"
+          ],
+          "description": "Which brand-facing problem this finding belongs to."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "description": "How well the sample supports this finding, separate from severity. Severity is how bad the problem is; confidence is how sure we are it is real and site-wide. 'high' means observed on every page crawled (with a meaningful sample) or directly observed as a policy fact; 'low' means seen on a minority of pages."
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "scored",
+            "qualitative"
+          ],
+          "description": "'scored': machine-observed and counted in the readiness score. 'qualitative': a single-sample observation that never affects a score."
+        },
+        "signal_type": {
+          "type": "string",
+          "enum": [
+            "lab",
+            "field"
+          ]
+        },
+        "parse_status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "unknown"
+          ],
+          "description": "'unknown' means a detector could not read the markup. It scores nothing and must never be rendered as an accusation."
         }
       }
     }
