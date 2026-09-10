@@ -224,8 +224,9 @@ website-observer  crawl-render- content-cleaner  query-guided-   failure-
    missing from the site's link graph *and* its sitemap.
 5. **`failure-diagnostics`** — the shared brain: maps every raw signal
    bundle from the steps above onto the **Web Failure Ontology**
-   (`skills/failure-diagnostics/references/ontology.yaml`, 23 failure modes
-   across 5 categories and 4 brand-facing axes) to produce named, severity-scored findings with
+   (`skills/failure-diagnostics/references/ontology.yaml`, 41 failure modes
+   — 38 scored defects plus 3 unscored limitations — across 5 categories and 4
+   brand-facing axes) to produce named, severity-scored findings with
    suggested remediations. A failure mode fires only on its declared
    `match_mode` (`all` signals together, or `any` one of them) — never on a
    weaker partial overlap; see the ontology file's header comment.

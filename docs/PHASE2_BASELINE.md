@@ -206,6 +206,13 @@ not something to speculate into the ontology now.
 
 ## Other known gaps, unchanged by this closeout
 
+- **Known limitation: with `--max-pages 1`, an unreachable apex may consume
+  the single crawl budget before the queued depth-0 `www` fallback can be
+  crawled. The default `max_pages=15` behaviour is unaffected.** Left as-is
+  deliberately: `max_pages=1` semantically requests at most one page slot, and
+  the audit still ends honestly — the apex is recorded unreachable, no page is
+  analysable, so the score abstains and `NO_ANALYSABLE_PAGE_EVIDENCE` is
+  reported rather than a number invented from nothing.
 - **Phase 1 steps 2–4** (correlation gate across a labeled corpus, mode
   weighting, regression diff) remain blocked on an independently-labeled
   site corpus, which does not exist yet. Detector-writing (Phase 1 step 1)
