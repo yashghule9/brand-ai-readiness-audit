@@ -976,7 +976,6 @@ failure_modes:
     recovery_strategy: manual_investigation
     recommended_tool: none
     audit_finding_title: "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine"
-
 # =====================================================================
 # Proactive opportunities
 # =====================================================================

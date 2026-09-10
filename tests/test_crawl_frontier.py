@@ -298,7 +298,7 @@ def test_rendered_links_are_canonicalised_before_entering_the_frontier(monkeypat
 @__import__("responses").activate
 def test_error_status_with_no_body_is_a_finding_not_a_false_clean():
     """A 403 with zero bytes and no matching anti-bot fingerprint used to
-    produce zero signals and count as a successfully crawled page — a site
+    produce zero signals and count as a successfully crawled page â€” a site
     scored 100 while we had actually retrieved nothing at all. Found live
     against a real site returning a bare 403."""
     import responses
@@ -440,8 +440,8 @@ def test_403_unconfirmed_is_an_unscored_limitation_not_a_defect():
 def test_a_genuine_404_with_real_content_is_still_processed_normally():
     """The conservative scope matters: only 403/503 (the same pair the
     anti-bot fingerprint check already treats specially) are diverted to the
-    "unconfirmed" limitation. An ordinary 404 with a real body — the
-    overwhelmingly common case when a crawled link is simply dead — must
+    "unconfirmed" limitation. An ordinary 404 with a real body â€” the
+    overwhelmingly common case when a crawled link is simply dead â€” must
     keep going through normal content analysis exactly as before, so a
     legitimate error response is never swept into "possibly blocked"."""
     import responses
@@ -464,3 +464,95 @@ def test_a_genuine_404_with_real_content_is_still_processed_normally():
     assert "http_error_status_blocked" not in result["signals"]
     assert result.get("raw_html") is not None
     assert result["soft_404_suspected"] is False  # status isn't 200, so N/A
+
+
+@__import__("responses").activate
+def test_discovery_callback_refuses_off_host_urls(monkeypatch):
+    """The frontier's host guard was not the only way off-host URLs could be
+    fetched. `observe()` follows redirects, so a depth-1 page that 301s
+    off-host makes `_extract_internal_links` use the *redirected* host as its
+    base — and the resulting third-party links, while correctly rejected by
+    the frontier, were still handed to `discovery` in the same unfiltered
+    list. Its `fetch_page_text` callback then fetched them, letting a third
+    party's text feed answer-completeness for signals about the audited site.
+
+    Reproduced before the fix: `https://evil.test/secret` — a URL appearing
+    only on the off-host page — was fetched.
+    """
+    import responses
+
+    from braiaudit import pipeline
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    fetched_by_callback: list[str] = []
+    real = pipeline._observe_and_clean_text
+
+    def spy(url, options, session, origin_cache=None):
+        fetched_by_callback.append(url)
+        return real(url, options, session, origin_cache)
+
+    monkeypatch.setattr(pipeline, "_observe_and_clean_text", spy)
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(responses.GET, "https://evil.test/robots.txt", status=404)
+    responses.add(responses.GET, "https://evil.test/sitemap.xml", status=404)
+
+    home = (
+        '<html><body><main><h1>Home</h1><a href="/hop">hop</a>'
+        "<p>" + "Short. " * 5 + "</p></main></body></html>"
+    )
+    responses.add(
+        responses.GET, "https://example.com/", body=home, status=200, content_type="text/html"
+    )
+    # An on-host page that redirects off-host mid-crawl — the only way a
+    # third-party URL can reach `internal_links` at all, since the static
+    # extractor filters plain off-host links at the producer.
+    responses.add(
+        responses.GET,
+        "https://example.com/hop",
+        status=301,
+        headers={"Location": "https://evil.test/landing"},
+    )
+    offhost = (
+        '<html><body><main><h1>Elsewhere</h1>'
+        '<a href="https://evil.test/secret">secret</a>'
+        "<p>" + "Third-party words about cost and support. " * 20 + "</p></main></body></html>"
+    )
+    responses.add(
+        responses.GET,
+        "https://evil.test/landing",
+        body=offhost,
+        status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET,
+        "https://evil.test/secret",
+        body=offhost,
+        status=200,
+        content_type="text/html",
+    )
+
+    run_audit(
+        "example.com",
+        options=AuditOptions(
+            max_pages=10, max_render_pages=0, max_depth=2, corroborate=False
+        ),
+    )
+
+    # The callback refused it: the fetch helper was never even reached for an
+    # off-host URL, so nothing was fetched, rendered, cleaned or diagnosed.
+    assert not any("evil.test" in u for u in fetched_by_callback), (
+        f"discovery callback accepted an off-host URL: {fetched_by_callback}"
+    )
+
+    # And no request for it was ever issued.
+    requested = [c.request.url for c in responses.calls]
+    assert not any("evil.test/secret" in u for u in requested), (
+        "an off-host URL discovered only on a third-party page was fetched"
+    )
+
+    # On-host candidates are unaffected — the guard rejects by host, not by
+    # refusing to run discovery at all.
+    assert any("example.com" in u for u in fetched_by_callback)

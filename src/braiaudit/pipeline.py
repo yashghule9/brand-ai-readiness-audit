@@ -146,6 +146,16 @@ def run_audit(
     text_cache: dict[str, str | None] = {}
 
     def fetch_page_text(candidate_url: str) -> str | None:
+        # Crawl scope is a boundary here too, not only at the frontier.
+        # Discovery receives the same unfiltered link list the frontier
+        # filters, so a page that redirects off-host mid-crawl can put a
+        # third party's URLs in front of this callback — and without this
+        # guard they were fetched, with their text then feeding
+        # answer-completeness for signals about the *audited* site.
+        # `allowed_hosts` resolves at call time, so the seed's apex<->www
+        # expansion is honoured.
+        if fetch.site_label(candidate_url) not in allowed_hosts:
+            return None
         if candidate_url in text_cache:
             return text_cache[candidate_url]
         text = _observe_and_clean_text(candidate_url, options, session, origin_cache)

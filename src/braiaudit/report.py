@@ -25,11 +25,11 @@ _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 # 2.0: per-axis scores became a percentage of that axis's own weighted
 # evaluable modes rather than "100 minus penalties". Adding failure modes
 # changes an axis's denominator, so scores are comparable only within a
-# schema version — hence the stamp on every report.
+# schema version â€” hence the stamp on every report.
 SCHEMA_VERSION = "2.0"
 
 # compliance_and_access findings are policy statements, not statistical
-# patterns — a single confirmed hit is fully corroborated regardless of
+# patterns â€” a single confirmed hit is fully corroborated regardless of
 # how many pages were sampled (see SKILL.md step 2).
 _NEVER_DOWNGRADED_CATEGORY = "compliance_and_access"
 
@@ -53,7 +53,7 @@ def assemble_report(
     """Assemble, corroborate, and validate the final audit report.
 
     `skills_engaged` (see `braiaudit.coverage.SIGNAL_SOURCES` and
-    `braiaudit.pipeline._engaged_skills`) drives the `meta.coverage` block —
+    `braiaudit.pipeline._engaged_skills`) drives the `meta.coverage` block â€”
     omit it only for a standalone/test call where coverage reporting isn't
     needed; the report still validates against the floor schema either way,
     since `meta` is an additive, non-required field.
@@ -191,7 +191,7 @@ def assemble_report(
 
     # --- Meta-analysis stage: "are our conclusions about what's wrong with
     # the site actually correct, consistent, non-duplicated, and
-    # well-supported?" — a different question than the findings themselves
+    # well-supported?" â€” a different question than the findings themselves
     # answer. See braiaudit.meta and braiaudit.coverage for what each half
     # checks; both are additive (schema-optional) and never change a
     # finding's content, only report on the findings as a whole.
@@ -202,7 +202,7 @@ def assemble_report(
             "pages_crawled": pages_crawled,
             "pages_unreachable": pages_unreachable,
             "stopped_early": bool(crawl_note),
-            # Empty unless a budget cut the crawl short — a partial crawl must
+            # Empty unless a budget cut the crawl short â€” a partial crawl must
             # never read as a complete one.
             "note": crawl_note,
             # Exact counts, not inferred: a page counts as rendered only when
@@ -290,7 +290,7 @@ def _opportunities(findings: list[dict[str, Any]], ontology: Any) -> list[dict[s
     anything was found wrong, because an audit that only lists defects
     under-serves a brand whose real problem is something it never built.
     Each finding already carries its own fix in `suggested_action`, so
-    nothing here restates one — an opportunity whose ground a finding
+    nothing here restates one â€” an opportunity whose ground a finding
     already covers is dropped via `suppressed_by`.
     """
     actions: list[dict[str, Any]] = []
@@ -330,14 +330,14 @@ def _headline(
     pages_crawled: int,
 ) -> str:
     """One sentence a non-expert can act on, stating what was actually
-    checked as well as what was found — a score with no sample size behind
+    checked as well as what was found â€” a score with no sample size behind
     it invites more confidence than the evidence supports."""
     critical = sum(1 for f in findings if f["severity"] == "critical")
 
     # Name the axis carrying the most findings, not the lowest score. Axis
-    # scores are percentages of different denominators — an axis with two
+    # scores are percentages of different denominators â€” an axis with two
     # evaluable modes swings between 0 and 100 in single steps, while one
-    # with twelve moves smoothly — so "lowest score wins" would keep electing
+    # with twelve moves smoothly â€” so "lowest score wins" would keep electing
     # whichever axis happens to be coarsest rather than whichever is worst.
     # Axes that could not be evaluated at all are excluded: they have nothing
     # to say either way.
@@ -413,7 +413,7 @@ def _parse_status(occurrences: list[tuple[str, dict[str, Any]]]) -> str:
     """`unknown` if any contributing observation could not be parsed.
 
     A detector that failed to read the markup must never have its silence
-    read as "the site is fine" — nor, worse, as "the signal is bad". Unknown
+    read as "the site is fine" â€” nor, worse, as "the signal is bad". Unknown
     propagates up and scores nothing.
     """
     statuses = {o[1].get("parse_status", "ok") for o in occurrences}
