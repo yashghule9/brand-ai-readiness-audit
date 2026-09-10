@@ -452,7 +452,14 @@ def test_a_genuine_404_with_real_content_is_still_processed_normally():
     "unconfirmed" limitation. An ordinary 404 with a real body — the
     overwhelmingly common case when a crawled link is simply dead — must
     keep going through normal content analysis exactly as before, so a
-    legitimate error response is never swept into "possibly blocked"."""
+    legitimate error response is never swept into "possibly blocked".
+
+    The body below is a genuine branded 404 page, which is what this test
+    always meant by "real content". It previously asserted that against a
+    24-character stub, and that stub was the bug in miniature: an error status
+    carrying nothing but a line of text is now diverted rather than mined for
+    content defects. See test_short_error_status_stub_is_not_analysed_as_content.
+    """
     import responses
 
     from braiaudit.fetch import observe
@@ -461,8 +468,18 @@ def test_a_genuine_404_with_real_content_is_still_processed_normally():
     responses.add(
         responses.GET,
         "https://example.com/gone",
-        body="<html><head><title>Not Found</title></head>"
-        "<body><h1>Page not found</h1></body></html>",
+        body="<html><head><title>Not Found</title></head><body><nav>"
+        '<a href="/">Home</a> <a href="/products">Products</a> '
+        '<a href="/support">Support</a></nav><main><h1>Page not found</h1>'
+        "<p>The page you asked for is not here. It may have been moved when we "
+        "reorganised the product catalogue in 2024, or the link that brought "
+        "you here may be out of date. The most popular destinations are listed "
+        "above, and our support team can find any discontinued product record "
+        "for you if you tell them the old part number. Every discontinued item "
+        "now redirects to its replacement, so an old bookmark should still "
+        "reach something useful rather than landing on this page. If you "
+        "believe this address should work, tell us where you followed the link "
+        "from and we will repair it.</p></main></body></html>",
         status=404,
         content_type="text/html",
     )

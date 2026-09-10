@@ -69,13 +69,40 @@ _ANTI_BOT_FINGERPRINTS = (
 )
 
 _SOFT_404_PHRASES = (
+    # Application-level: a client-side router serving its not-found UI at 200.
     "page not found",
     "404 not found",
     "item unavailable",
     "this page doesn't exist",
     "we couldn't find that page",
     "content not found",
+    # Hosting-level: the origin never resolved the vhost at all, and the edge
+    # returned its own stub at 200. Found live on a real .ac.in apex serving
+    # "404 Unknown host", which the audit then read as the institution's
+    # homepage and produced seven content findings from.
+    "unknown host",
+    "no such host",
+    "default backend - 404",
 )
+
+# Two thresholds, because the two checks separate different things.
+#
+# At status 200 the question is "is this an error UI wearing a success
+# status, or a page *about* errors?" The rival is an HTTP-status
+# documentation article — MDN's own 404 page is titled "404 Not Found" and
+# runs to ~11,900 characters — so the bar sits well above any error UI and
+# an order of magnitude below the article. A branded not-found page at 200
+# is genuinely a soft 404 and is meant to be caught here.
+_SOFT_404_MAX_TEXT = 1200
+
+# At an error status the question is different: the status line is already
+# honest, so the only thing to establish is whether a body worth reading came
+# back. The rival here is a *genuine* branded 404 — nav, an explanation, links
+# onward — which is a real page of the site and must keep being analysed. So
+# this bar is tight: it clears the default server stubs (nginx's "404 Not
+# Found nginx/1.18.0", Apache's ErrorDocument sentence, a bare vhost "404
+# Unknown host" at 104 characters) and nothing else.
+_ERROR_STUB_MAX_TEXT = 250
 
 _ROOT_CONTAINER_IDS = ("app", "root", "__next", "___gatsby")
 
@@ -241,10 +268,27 @@ def _detect_anti_bot(status_code: int, headers: dict[str, str], body: str) -> st
     return next((fp for fp in _ANTI_BOT_FINGERPRINTS if fp in haystack), None)
 
 
-def _detect_soft_404(status_code: int, title: str, body_sample: str) -> bool:
+def _detect_soft_404(status_code: int, title: str, visible_text: str) -> bool:
+    """Whether a 200 response is really an error stub.
+
+    Two deliberate narrowings, because a false positive here is expensive:
+    a page detected as a soft 404 is halted, so its content is never analysed
+    and a single-page site stops being scored at all.
+
+    First, the haystack is the *visible text*, not raw HTML. Searching markup
+    matched on a `/page-not-found` href, a CSS class, or a phrase buried in
+    inline JSON — none of which is something a reader ever sees.
+
+    Second, a phrase alone is not enough. "404 Not Found" appearing in a
+    thousand-word article is a page *about* HTTP status codes, not a page
+    that is one; only a short body corroborates that the phrase is the page's
+    whole message rather than its subject.
+    """
     if status_code != 200:
         return False
-    haystack = f"{title} {body_sample}".lower()
+    if len(visible_text) > _SOFT_404_MAX_TEXT:
+        return False
+    haystack = f"{title} {visible_text}".lower()
     return any(phrase in haystack for phrase in _SOFT_404_PHRASES)
 
 
@@ -689,7 +733,42 @@ def observe(
     result["data_src_attribute_present"] = soup.find(attrs={"data-src": True}) is not None
 
     title = soup.title.get_text(strip=True) if soup.title else ""
-    result["soft_404_suspected"] = _detect_soft_404(resp.status_code, title, body[:3000])
+    # `text`, not `body`: the reader's view of the page, with script/style
+    # already stripped above — see _detect_soft_404 for why markup is the
+    # wrong haystack.
+    result["soft_404_suspected"] = _detect_soft_404(resp.status_code, title, text)
+    if result["soft_404_suspected"]:
+        # Same contract as the 403/503 path above: once this response is
+        # established to be an error stub, it stops being observed for
+        # content. Reporting "no structured data, no contact details, no
+        # headings" about a stub would be literally true of the stub and
+        # entirely false of the site — which is exactly how a real .ac.in
+        # apex serving "404 Unknown host" collected seven findings that
+        # belonged to no one. The structural fields measured above stay,
+        # because they describe what came back; the content signals never
+        # fire, because there is no content here to judge.
+        result["signals"].append("soft_404_suspected")
+        validate(result, "website-observer")
+        return result
+
+    # The same situation wearing an honest status line. A 4xx/5xx whose body
+    # is only a stub is not the site's content either, and until now only two
+    # narrower cases were caught: a *bodiless* error (handled above) and
+    # 403/503 specifically. A 404 carrying a short stub fell between them and
+    # went through full content analysis — which is how a real .ac.in apex
+    # returning 104 bytes of "404 Unknown host" was read as an institution's
+    # homepage and charged with seven content and identity defects. Length is
+    # the test, not the status: a genuine error page with a real body (nav,
+    # copy, suggested links) is still the site's own page and still analysed.
+    if resp.status_code >= 400 and len(text) <= _ERROR_STUB_MAX_TEXT:
+        result["http_error_evidence"] = (
+            f"HTTP {resp.status_code} returned only {len(text)} character(s) of "
+            "text — an error stub, not a page. Nothing here describes the site, "
+            "so it was not analysed as the site's content."
+        )
+        result["signals"].append("http_error_status_blocked")
+        validate(result, "website-observer")
+        return result
 
     signals = result["signals"]
     if result["raw_text_length"] < _LOW_RAW_TEXT_THRESHOLD:
@@ -838,8 +917,9 @@ def observe(
             signals.append("schema_visual_desync")
     if not result["canonical_tag_present"]:
         signals.append("canonical_missing")
-    if result["soft_404_suspected"]:
-        signals.append("soft_404_suspected")
+    # No soft-404 branch here: reaching this line means the response was not
+    # a stub, since a detected one returns early above with that signal as
+    # its only conclusion.
 
     validate(result, "website-observer")
     return result

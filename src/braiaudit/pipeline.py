@@ -44,6 +44,13 @@ _HALT_SIGNALS = {
     "anti_bot_challenge_detected",
     "http_error_status_blocked",
     "http_error_status_unconfirmed",
+    # A 200 carrying an error stub is content we must not read as the site's.
+    # Detecting it and then analysing it anyway was the whole bug: the stub
+    # has no schema, no contact details and no headings, so every content and
+    # identity check "failed" and the report accused the brand of seven
+    # defects belonging to a page that was never theirs. The soft-404 finding
+    # itself is emitted before this halt and still stands.
+    "soft_404_suspected",
 }
 
 # Used when the caller supplies no target queries. Without any, answer-
@@ -349,7 +356,14 @@ def run_audit(
     # --- Site-level pass: off-site corroboration -----------------------
     # One check per audit, not per page: whether a public record of this
     # brand exists is a property of the brand, not of any single URL.
-    if options.corroborate and pages_crawled_any(findings_by_url, pages_unreachable):
+    #
+    # Gated on pages actually *analysed*, not merely fetched. A run whose only
+    # response was an error stub or a challenge has read no brand name, no
+    # legal name and no sameAs links, so "no public record corroborates this
+    # brand" would be a verdict on a lookup done from the bare domain — an
+    # identity accusation sourced from a page that was never the site's. This
+    # is what pages_crawled_any's own docstring means by "reached nothing".
+    if options.corroborate and analysed_urls:
         engaged.add("offsite-corroboration")
         bundle = corroborate_mod.corroborate(
             site, brand_names, session=session, user_agent=options.user_agent

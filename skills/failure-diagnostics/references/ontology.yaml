@@ -325,8 +325,14 @@ failure_modes:
     match_mode: all
     signals: [soft_404_suspected]
     description: >
-      Client-side router returns a `200 OK` while serving a "Page Not
-      Found"/"Item Unavailable" UI, deceiving status-code-only crawlers.
+      The URL returns `200 OK` while serving an error page, deceiving
+      status-code-only crawlers. Two families reach this: a client-side
+      router rendering its "Page Not Found"/"Item Unavailable" UI, and an
+      edge or origin that never resolved the hostname returning its own stub
+      ("404 Unknown host") at 200. Both are confirmed only on a short body —
+      a long page merely discussing 404s is a page about the status code,
+      not one serving it. The page is not analysed as the site's content
+      either way, so no content or identity conclusion is drawn from it.
     axis: staleness
     remediation: >
       Return a real 404 (or 410) for content that no longer exists, and a 301 to
