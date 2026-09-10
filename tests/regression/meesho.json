@@ -1,10 +1,14 @@
 {
   "schema_version": "2.0",
   "site": "meesho.com",
-  "audited_at": "2026-09-09T20:15:16Z",
+  "audited_at": "2026-09-09T20:57:16Z",
   "site_info": {
     "domain": "meesho.com",
-    "url": "https://meesho.com/"
+    "url": "https://meesho.com/",
+    "brand_name_candidates": [],
+    "declared_brand_name": "",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

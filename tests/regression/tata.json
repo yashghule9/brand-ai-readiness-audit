@@ -1,10 +1,29 @@
 {
   "schema_version": "2.0",
   "site": "tata.com",
-  "audited_at": "2026-09-09T20:11:06Z",
+  "audited_at": "2026-09-09T20:52:34Z",
   "site_info": {
     "domain": "tata.com",
-    "url": "https://tata.com/"
+    "url": "https://tata.com/",
+    "brand_name_candidates": [
+      "The Tata group. Leadership with Trust.",
+      "Contact Us | Tata group",
+      "We are Tata | About Us | Tata group",
+      "A Deeper Dive Into Tata History | Tata group",
+      "Innovation | Tata group",
+      "Sponsorships | Tata group",
+      "Project Aalingana | Sustainability | Tata group",
+      "Tata Code of Conduct | Tata group",
+      "Stories From Our Heritage | Tata group",
+      "A History Through Timelines | Tata group",
+      "Values and Purpose | Tata group",
+      "Brands Showcase | Tata group",
+      "Aerospace and Defence |  Tata group",
+      "Tata group | Business Vertical | Automotive"
+    ],
+    "declared_brand_name": "",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

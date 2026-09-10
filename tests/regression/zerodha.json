@@ -1,10 +1,30 @@
 {
   "schema_version": "2.0",
   "site": "zerodha.com",
-  "audited_at": "2026-09-09T20:11:23Z",
+  "audited_at": "2026-09-09T20:52:48Z",
   "site_info": {
     "domain": "zerodha.com",
-    "url": "https://zerodha.com/"
+    "url": "https://zerodha.com/",
+    "brand_name_candidates": [
+      "Zerodha: Online brokerage platform for stock trading & investing",
+      "Contact us and our branch offices all over India",
+      "Zerodha's Products: Our technology, trading and investment platforms",
+      "Kite Connect APIs: Trading and investment HTTP APIs",
+      "Our company, history, and the people behind it",
+      "Product and business philosophies",
+      "Brokerage calculator",
+      "Zerodha financial tools and Calculators",
+      "SIP Calculator: Calculate SIP returns online",
+      "Zerodha Cares",
+      "Email Protection | Cloudflare",
+      "Zerodha brokerage charges, fees & taxes on trading and investing",
+      "Open free commodity trading account at Zerodha",
+      "Convert your paper share certificates to demat form",
+      "Disclosure"
+    ],
+    "declared_brand_name": "",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

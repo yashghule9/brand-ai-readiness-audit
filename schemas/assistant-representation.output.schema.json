@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brand-ai-readiness-audit.dev/assistant-representation.output.schema.json",
+  "title": "AssistantRepresentationOutput",
+  "description": "Phase 3 output: observational measurement of how an external AI assistant represents the audited brand. Deliberately separate from audit-report.schema.json \u2014 this is never merged into a Phase 2 audit report, never scored, and never affects readiness_score, severity, or any finding.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "site",
+    "mode",
+    "generated_at",
+    "verified_facts",
+    "questions",
+    "summary",
+    "timing",
+    "disclaimer"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "site": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "blind",
+        "grounded"
+      ],
+      "description": "'blind' (Mode A): no site content supplied to the assistant. 'grounded' (Mode B): a short verified-fact snippet was supplied. Never mixed within one report."
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "verified_facts": {
+      "type": "object",
+      "description": "What Phase 2 (or the caller) actually verified, read-only from a finished audit report. Never inferred from an assistant's own answer.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "value",
+          "status",
+          "source"
+        ],
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "heuristic",
+              "unknown",
+              "unavailable"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "question",
+          "status",
+          "provider",
+          "observation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "not_evaluated",
+              "error"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queried_at": {
+            "type": "string"
+          },
+          "error_category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "elapsed_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "observation": {
+            "type": "object",
+            "required": [
+              "status",
+              "signals",
+              "basis",
+              "notes"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "consistent",
+                  "assistant_brand_not_found",
+                  "assistant_entity_confusion",
+                  "assistant_domain_mismatch",
+                  "assistant_fact_conflict",
+                  "assistant_fact_omission",
+                  "not_evaluated"
+                ]
+              },
+              "signals": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "basis": {
+                "type": "string",
+                "enum": [
+                  "deterministic",
+                  "heuristic",
+                  "n/a"
+                ],
+                "description": "Whether this observation followed from a direct string comparison against a verified fact, a narrowly-scoped keyword heuristic, or neither applied."
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "questions_asked",
+        "questions_evaluated",
+        "not_evaluated",
+        "consistent",
+        "discrepancies"
+      ],
+      "properties": {
+        "questions_asked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "questions_evaluated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "not_evaluated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "consistent": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "discrepancies": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": [
+        "total_ms",
+        "query_count"
+      ],
+      "properties": {
+        "total_ms": {
+          "type": "number"
+        },
+        "query_count": {
+          "type": "integer"
+        }
+      }
+    },
+    "disclaimer": {
+      "type": "string"
+    }
+  }
+}

@@ -1,10 +1,32 @@
 {
   "schema_version": "2.0",
   "site": "zoho.com",
-  "audited_at": "2026-09-09T20:16:16Z",
+  "audited_at": "2026-09-09T20:58:16Z",
   "site_info": {
     "domain": "zoho.com",
-    "url": "https://zoho.com/"
+    "url": "https://zoho.com/",
+    "brand_name_candidates": [
+      "Zoho",
+      "Zoho | Cloud Software Suite for Businesses",
+      "Explore All Products | Zoho",
+      "Zoho | About Us",
+      "Zia Agents\u00e2\u0080\u0094Zoho's Unified AI For Your Entire Business.",
+      "Zoho Blog",
+      "Strengthening our commitment to the UAE with new Data Centres in Abu Dhabi and Dubai - Zoho Blog",
+      "Zoho Customer Success Stories & Testimonials",
+      "Customizable enterprise software by Zoho",
+      "Mercedes-Benz India and Zoho launches \u00e2\u0080\u0098SKYLine\u00e2\u0080\u0099, a bespoke and decentralized Dealer Management System, redefining customer experience by offering a state-of-art seamless and integrated customer journey",
+      "Zoho One | The Operating System for Business",
+      "Our Story | Zoho",
+      "Zoho | Our Privacy Commitment",
+      "Zoho keeps your business moving forward \u00f0\u009f\u0087\u00ae\u00f0\u009f\u0087\u00b3",
+      "Create New Account | Sign up to Zoho",
+      "It takes time | Zoho",
+      "Discover how Zoho stands out | Compare alternatives"
+    ],
+    "declared_brand_name": "Zoho",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

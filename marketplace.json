@@ -44,6 +44,11 @@
       "id": "freshness-corroboration",
       "path": "skills/freshness-corroboration",
       "summary": "Aggregates evidence, corroborates findings, runs coverage/validation meta-analysis, and emits the final floor-schema JSON audit report."
+    },
+    {
+      "id": "assistant-representation",
+      "path": "skills/assistant-representation",
+      "summary": "Phase 3, experimental and unscored: observes how an external AI assistant represents the brand, kept strictly separate from the deterministic audit's findings and score."
     }
   ]
 }

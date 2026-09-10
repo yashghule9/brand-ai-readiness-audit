@@ -25,6 +25,7 @@ _SCHEMA_FILENAMES = {
     "failure-diagnostics": "failure-diagnostics.output.schema.json",
     "ontology": "ontology.schema.json",
     "marketplace": "marketplace.schema.json",
+    "assistant-representation": "assistant-representation.output.schema.json",
 }
 
 

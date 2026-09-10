@@ -1,10 +1,14 @@
 {
   "schema_version": "2.0",
   "site": "swiggy.com",
-  "audited_at": "2026-09-09T20:15:22Z",
+  "audited_at": "2026-09-09T20:57:23Z",
   "site_info": {
     "domain": "swiggy.com",
-    "url": "https://swiggy.com/"
+    "url": "https://swiggy.com/",
+    "brand_name_candidates": [],
+    "declared_brand_name": "",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

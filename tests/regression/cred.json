@@ -1,10 +1,29 @@
 {
   "schema_version": "2.0",
   "site": "cred.club",
-  "audited_at": "2026-09-09T20:15:09Z",
+  "audited_at": "2026-09-09T20:57:12Z",
   "site_info": {
     "domain": "cred.club",
-    "url": "https://cred.club/"
+    "url": "https://cred.club/",
+    "brand_name_candidates": [
+      "CRED. not everyone gets it.",
+      "about us - CRED",
+      "CRED - pay your credit card bills & earn rewards",
+      "calculators on CRED",
+      "Meet the CRED IndusInd Bank Rupay Credit Card",
+      "CRED cash+ : borrow against your mutual funds",
+      "anti discrimination and equal opportunity policy - CRED",
+      "CRED garage",
+      "investor relations - CRED",
+      "other disclosures | CRED",
+      "404: This page could not be found",
+      "CRED money",
+      "switch to CRED UPI",
+      "privacy policy | CRED"
+    ],
+    "declared_brand_name": "Meet the CRED IndusInd Bank Rupay Credit Card",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

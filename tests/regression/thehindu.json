@@ -1,10 +1,30 @@
 {
   "schema_version": "2.0",
   "site": "thehindu.com",
-  "audited_at": "2026-09-09T20:18:28Z",
+  "audited_at": "2026-09-09T21:00:35Z",
   "site_info": {
     "domain": "thehindu.com",
-    "url": "https://thehindu.com/"
+    "url": "https://thehindu.com/",
+    "brand_name_candidates": [
+      "The Hindu",
+      "The Hindu: Latest News today from India and the World, Breaking news, Top Headlines and Trending News Videos. | The Hindu",
+      "Contacts - The Hindu",
+      "About Us - The Hindu",
+      "Latest Advertise With Us News - The Hindu",
+      "Archive Articles from Web - The Hindu",
+      "Book Reviews, Launches, Author Interviews, Excerpts - The Hindu",
+      "Author Interviews, Profiles, Bibliography - The Hindu",
+      "Reviews of Fiction and Non-Fiction Books by The Hindu - The Hindu",
+      "\u2018Harry Potter\u2019 publisher Bloomsbury\u2019s founder Nigel Newton plots CEO handover after 40 years - The Hindu",
+      "The Hindu on Books newsletter: All about Sonia Gandhi - The Hindu",
+      "Latest Brandhub News - The Hindu",
+      "August is the month of Cricket Festival in Keralam - The Hindu",
+      "Latest PR Release News - The Hindu",
+      "UPI at Ten: A Decade That Rewired How India Pays - The Hindu"
+    ],
+    "declared_brand_name": "The Hindu",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

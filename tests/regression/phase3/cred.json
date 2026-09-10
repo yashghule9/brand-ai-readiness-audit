@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "site": "cred.club",
+  "mode": "blind",
+  "generated_at": "2026-09-09T20:36:28Z",
+  "verified_facts": {
+    "official_domain": {
+      "value": "cred.club",
+      "status": "verified",
+      "source": "phase2_report.site_info.domain"
+    },
+    "brand_name": {
+      "value": "CRED",
+      "status": "verified",
+      "source": "caller_supplied"
+    },
+    "legal_name": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    },
+    "location": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    },
+    "products": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    },
+    "operator": {
+      "value": null,
+      "status": "unknown",
+      "source": "not exposed by phase2 report"
+    }
+  },
+  "questions": [
+    {
+      "id": "brand_identity",
+      "question": "What is CRED?",
+      "answer": "CRED is an Indian fintech company and app, founded in 2018 by Kunal Shah, that rewards members for paying their credit card bills on time. Membership is gated on having a high credit score.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_offering",
+      "question": "What does CRED offer?",
+      "answer": "CRED offers credit card bill payment with rewards, along with CRED Cash credit lines, CRED Pay, a members' store, rent payments, and vehicle-servicing offerings. Members earn CRED coins for paying bills, redeemable against offers.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_products",
+      "question": "What products or services is CRED known for?",
+      "answer": "CRED is best known for credit card bill payments with rewards, its high-production advertising campaigns during the IPL, and its exclusivity based on credit score.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_location",
+      "question": "Where is CRED based?",
+      "answer": "CRED is based in Bengaluru, Karnataka, India.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_domain",
+      "question": "What is CRED's official website?",
+      "answer": "CRED's official website is cred.club.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    },
+    {
+      "id": "brand_operator",
+      "question": "Who owns or operates CRED?",
+      "answer": "CRED was founded by Kunal Shah, who leads it. The legal operating entity is Dreamplug Technologies Private Limited. Investors have included Tiger Global, Sequoia, DST Global and Coatue.",
+      "status": "ok",
+      "provider": "claude-code-session",
+      "model": "claude-opus-5",
+      "queried_at": "2026-09-09T20:36:28Z",
+      "error_category": null,
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "consistent",
+        "signals": [],
+        "basis": "deterministic",
+        "notes": "No conflict, omission, or confusion signal fired against what is currently verified."
+      }
+    }
+  ],
+  "summary": {
+    "questions_asked": 6,
+    "questions_evaluated": 6,
+    "not_evaluated": 0,
+    "consistent": 6,
+    "discrepancies": 0
+  },
+  "timing": {
+    "total_ms": 0.0,
+    "query_count": 6
+  },
+  "disclaimer": "Observational only. Not scored, not merged into the Phase 2 audit report, and not evidence about the website's own AI-readiness \u2014 this measures what an assistant already represents, which is provider- and time-dependent and is not guaranteed to be reproducible run to run."
+}

@@ -1,10 +1,30 @@
 {
   "schema_version": "2.0",
   "site": "www.isro.gov.in",
-  "audited_at": "2026-09-09T20:18:38Z",
+  "audited_at": "2026-09-09T21:00:46Z",
   "site_info": {
     "domain": "www.isro.gov.in",
-    "url": "https://www.isro.gov.in/"
+    "url": "https://www.isro.gov.in/",
+    "brand_name_candidates": [
+      "Indian Space Research Organisation",
+      "Contact Us",
+      "Soil Moisture Products at 100m resolution from NISAR data",
+      "NISAR S-Band SAR Data Products Release",
+      "3rd National Space Day 2026 celebrated at Ahmedabad",
+      "Announcement of Opportunity (AO) for utilizing archival data of Planet Venus for scientific analysis",
+      "ASEAN Food Security Information System (AFSIS) Appreciates ISRO",
+      "Achievements of Department of Space - 2025",
+      "Decoding the rhythms of a Black Hole: A discovery with AstroSat",
+      "Aditya-L1 Mission: Announcement of Opportunity (AO) soliciting proposals for the third AO cycle observations",
+      "ISRO's Aditya-L1 decodes the Impact of a Powerful Solar Storm on Earth\u2019s Invisible Magnetic Shield",
+      "Aditya-L1 Mission: Announcement of Opportunity (AO) soliciting proposals for the first AO cycle observations",
+      "Aditya-L1 Mission: Announcement of Opportunity (AO) soliciting proposals for the second AO cycle observations",
+      "Aditya-L1 Catches the Sun's Early Warning Signs Before Solar Flares",
+      "India\u2019s Aditya-L1 Joins Global Effort in Landmark Solar Storm Study"
+    ],
+    "declared_brand_name": "",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

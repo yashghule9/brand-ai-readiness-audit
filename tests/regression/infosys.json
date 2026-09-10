@@ -1,10 +1,14 @@
 {
   "schema_version": "2.0",
   "site": "infosys.com",
-  "audited_at": "2026-09-09T20:11:12Z",
+  "audited_at": "2026-09-09T20:52:41Z",
   "site_info": {
     "domain": "infosys.com",
-    "url": "https://infosys.com/"
+    "url": "https://infosys.com/",
+    "brand_name_candidates": [],
+    "declared_brand_name": "",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {

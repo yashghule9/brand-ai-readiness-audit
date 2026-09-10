@@ -1,24 +1,44 @@
 {
   "schema_version": "2.0",
   "site": "razorpay.com",
-  "audited_at": "2026-09-09T20:13:55Z",
+  "audited_at": "2026-09-09T20:55:34Z",
   "site_info": {
     "domain": "razorpay.com",
-    "url": "https://razorpay.com/"
+    "url": "https://razorpay.com/",
+    "brand_name_candidates": [
+      "Razorpay - Best Payment Solution for Online Payments India",
+      "Razorpay",
+      "Contact Razorpay Customer Care \u2013 Razorpay Support",
+      "About Razorpay and The Team Behind it",
+      "Accept International Payments for Global Business | Razorpay",
+      "Razorpay Agent Studio | AI Agents for Payments & Revenue Operations",
+      "RazorpayX Agentic Banking | Automate Finance Operations with Agents",
+      "404 Not Found",
+      "Razorpay Blog",
+      "Razorpay Blog - All Things Payments | All Things Fintech",
+      "Chargeback: What is It, Types & Prevention",
+      "Unveiled at AI Impact Summit: Razorpay partners with Replit to power the next wave of AI Builders in India - Razorpay Blog",
+      "CAGR Calculator: Calculate Compound Annual Growth Rate - Razorpay",
+      "Instant settlements - Razorpay Capital | Grow your business",
+      "Razorpay Corporate Information - Payment Gateway for Online Payments"
+    ],
+    "declared_brand_name": "Razorpay",
+    "organization_legal_name": "",
+    "organization_same_as": []
   },
   "provenance": [],
   "summary": {
-    "total_findings": 17,
+    "total_findings": 16,
     "critical": 0,
     "high": 3,
     "medium": 11,
-    "readiness_score": 68,
+    "readiness_score": 69,
     "by_axis": {
       "visibility": {
-        "score": 74,
-        "findings": 7,
+        "score": 75,
+        "findings": 6,
         "evidence_basis": {
-          "modes_fired": 7,
+          "modes_fired": 6,
           "modes_possible": 16
         }
       },
@@ -48,7 +68,7 @@
       }
     },
     "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. Axes are scored against themselves and never normalised against each other. null means nothing on that axis could be evaluated. Adding failure modes changes an axis's denominator, so scores are comparable only between runs with the same schema_version. Opportunities and audit limitations never affect the score.",
-    "headline": "17 issue(s) were found across 15 page(s) of razorpay.com, most of them on visibility (7 of 17). 1 check(s) could not be completed.",
+    "headline": "16 issue(s) were found across 15 page(s) of razorpay.com, most of them on visibility (6 of 16). 1 check(s) could not be completed.",
     "top_priorities": [
       {
         "ref": "F-001",
@@ -184,14 +204,16 @@
       "id": "F-006",
       "title": "High Noise-to-Content Ratio Obstructs Data Extraction",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 5/15 exhibit this failure mode, e.g. https://razorpay.com/agentic-payments.",
+      "evidence": "Crawled 15 page(s); 7/15 exhibit this failure mode, e.g. https://razorpay.com/agentic-business-banking.",
       "suggested_action": {
         "summary": "Raise the main-content-to-chrome ratio on template pages: wrap primary content in <main>/<article>, place repeated navigation and footer blocks behind semantic landmarks, and stop duplicating the full site menu on every page. Extractors score density per page, so a product page that is 80% navigation reads as a navigation page.",
         "priority": "medium"
       },
       "affected_urls": [
+        "https://razorpay.com/agentic-business-banking",
         "https://razorpay.com/agentic-payments",
         "https://razorpay.com/blog/chargebacks",
+        "https://razorpay.com/cagr-calculator",
         "https://razorpay.com/capital/instant-settlements",
         "https://razorpay.com/capital/instant-settlements?source=know_more",
         "https://razorpay.com/support"
@@ -207,16 +229,14 @@
       "id": "F-007",
       "title": "Page Does Not State What It Is",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 6/15 exhibit this failure mode, e.g. https://razorpay.com/agent-studio.",
+      "evidence": "Crawled 15 page(s); 4/15 exhibit this failure mode, e.g. https://razorpay.com/agent-studio.",
       "suggested_action": {
         "summary": "Give every page exactly one <h1> naming what the page is about, and a <title> that identifies both the page and the brand. Templates that render the site name alone in both places leave every page looking identical to a machine.",
         "priority": "medium"
       },
       "affected_urls": [
         "https://razorpay.com/agent-studio",
-        "https://razorpay.com/agentic-business-banking",
         "https://razorpay.com/blog",
-        "https://razorpay.com/cagr-calculator",
         "https://razorpay.com/corporate-information",
         "https://razorpay.com/support"
       ],
@@ -231,7 +251,7 @@
       "id": "F-008",
       "title": "Content Is Not Written In The Register Users Ask Questions In",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 5/15 exhibit this failure mode, e.g. https://razorpay.com/about.",
+      "evidence": "Crawled 15 page(s); 6/15 exhibit this failure mode, e.g. https://razorpay.com/about.",
       "suggested_action": {
         "summary": "Add headings phrased the way customers ask: \"How much does the <product> cost?\", \"Which <product> is best for <use case>?\". Mirror real query phrasing rather than internal product naming, and answer immediately beneath each heading so the pairing is extractable as a unit.",
         "priority": "medium"
@@ -239,6 +259,7 @@
       "affected_urls": [
         "https://razorpay.com/about",
         "https://razorpay.com/agent-studio",
+        "https://razorpay.com/agentic-business-banking",
         "https://razorpay.com/agentic-payments",
         "https://razorpay.com/corporate-information",
         "https://razorpay.com/support"
@@ -254,13 +275,12 @@
       "id": "F-009",
       "title": "Information Fragmented Across Multiple Subpages",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://razorpay.com/agentic-business-banking.",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://razorpay.com/support.",
       "suggested_action": {
         "summary": "Consolidate the facts that answer one question onto one page: price, availability, key specs and the support path belong on the product page itself rather than scattered across separate pricing, FAQ and shipping pages. Assistants synthesise most reliably when a single retrieved document answers the question completely.",
         "priority": "medium"
       },
       "affected_urls": [
-        "https://razorpay.com/agentic-business-banking",
         "https://razorpay.com/support"
       ],
       "category": "discovery_and_pathing",
@@ -307,15 +327,14 @@
       "id": "F-011",
       "title": "Brand Is Named Inconsistently Across The Page",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 3/15 exhibit this failure mode, e.g. https://razorpay.com/agentic-payments.",
+      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://razorpay.com/agentic-payments.",
       "suggested_action": {
         "summary": "Settle on one canonical brand string and use it byte-identically in Organization.name, og:site_name and the brand portion of every title. Reserve variation for the page-specific half of the title.",
         "priority": "medium"
       },
       "affected_urls": [
         "https://razorpay.com/agentic-payments",
-        "https://razorpay.com/blog/chargebacks",
-        "https://razorpay.com/cagr-calculator"
+        "https://razorpay.com/blog/chargebacks"
       ],
       "category": "semantic_deficit",
       "axis": "identity",
@@ -378,7 +397,7 @@
       "id": "F-014",
       "title": "No Schema.org / JSON-LD Structured Data Available",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 7/15 exhibit this failure mode, e.g. https://razorpay.com/about.",
+      "evidence": "Crawled 15 page(s); 6/15 exhibit this failure mode, e.g. https://razorpay.com/about.",
       "suggested_action": {
         "summary": "Add JSON-LD to the primary templates: Organization (name, logo, foundingDate, sameAs) sitewide, Product plus Offer (name, sku, price, priceCurrency, availability, priceValidUntil) on product pages, FAQPage on support content, and BreadcrumbList for hierarchy. Structured triples let a retrieval pipeline bind a number to \"price\" rather than inferring it from prose, which is where wrong prices in AI answers come from.",
         "priority": "medium"
@@ -388,7 +407,6 @@
         "https://razorpay.com/agent-studio",
         "https://razorpay.com/agentic-business-banking",
         "https://razorpay.com/agentic-payments",
-        "https://razorpay.com/cagr-calculator",
         "https://razorpay.com/corporate-information",
         "https://razorpay.com/support"
       ],
@@ -401,25 +419,6 @@
     },
     {
       "id": "F-015",
-      "title": "Absent Semantic HTML Structure Undermines Reliable Parsing",
-      "severity": "low",
-      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://razorpay.com/agentic-business-banking.",
-      "suggested_action": {
-        "summary": "Use real semantic HTML: <h1>-<h3> for the actual heading hierarchy, <p> for prose, <table> for specifications, and <main>/<article>/<section> for structure. Chunking pipelines split on these boundaries; a page built entirely from <div>s gets split arbitrarily and its facts end up separated from the headings that give them meaning.",
-        "priority": "low"
-      },
-      "affected_urls": [
-        "https://razorpay.com/agentic-business-banking"
-      ],
-      "category": "content_noise",
-      "axis": "visibility",
-      "confidence": "low",
-      "source_type": "scored",
-      "signal_type": "field",
-      "parse_status": "ok"
-    },
-    {
-      "id": "F-016",
       "title": "Deep Page Offers No Breadcrumb Trail",
       "severity": "low",
       "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://razorpay.com/capital/instant-settlements.",
@@ -439,7 +438,7 @@
       "parse_status": "ok"
     },
     {
-      "id": "F-017",
+      "id": "F-016",
       "title": "Last-Modified Header Is Missing Or Long Out Of Date",
       "severity": "low",
       "evidence": "Crawled 15 page(s); 12/15 exhibit this failure mode, e.g. https://razorpay.com/.",
@@ -472,7 +471,7 @@
   "audit_limitations": [
     {
       "title": "Render-Dependent Checks Could Not Be Verified",
-      "detail": "Could not be verified on 9 of 15 page(s) crawled.",
+      "detail": "Could not be verified on 8 of 15 page(s) crawled.",
       "resolution": "No site change is implied by this finding \u2014 it records what this audit could not verify. Re-run with the render backend installed (pip install braiaudit[render] and playwright install chromium) to confirm or clear the render-dependent checks.",
       "affected_urls": [
         "https://razorpay.com/accept-international-payments?utm_source=website&utm_medium=International+payment+Ticker+&utm_campaign=Homepage+banner+ticker&utm_id=Homepage+Ticker",
@@ -481,7 +480,6 @@
         "https://razorpay.com/blog",
         "https://razorpay.com/blog/chargebacks",
         "https://razorpay.com/blog/razorpay-partners-with-replit",
-        "https://razorpay.com/cagr-calculator",
         "https://razorpay.com/capital/instant-settlements",
         "https://razorpay.com/capital/instant-settlements?source=know_more"
       ]
@@ -640,7 +638,10 @@
           "means": "no problem is reported without telling the reader what to do about it"
         }
       ],
-      "notes": []
+      "notes": [
+        "2 findings affect exactly the same page(s) (6 URLs) and may share a root cause rather than being independent problems: Content Is Not Written In The Register Users Ask Questions In; No Schema.org / JSON-LD Structured Data Available.",
+        "2 findings affect exactly the same page(s) (https://razorpay.com/support) and may share a root cause rather than being independent problems: Non-Standard Navigation Links Are Invisible To Crawlers; Information Fragmented Across Multiple Subpages."
+      ]
     },
     "crawl": {
       "pages_crawled": 15,
