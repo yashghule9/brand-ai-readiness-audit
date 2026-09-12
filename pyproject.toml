@@ -41,8 +41,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/example/brand-ai-readiness-audit"
-Issues = "https://github.com/example/brand-ai-readiness-audit/issues"
+Homepage = "https://github.com/yashghule9/brand-ai-readiness-audit"
+Issues = "https://github.com/yashghule9/brand-ai-readiness-audit/issues"
 
 [project.scripts]
 braiaudit = "braiaudit.cli:main"

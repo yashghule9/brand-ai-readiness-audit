@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/) for the `braiaudit` package
-(`marketplace.json`'s `marketplace_version` tracks the *skill definitions*
+(`marketplace.json`'s `version` tracks the *skill definitions*
 separately and moves more slowly).
 
 ## [0.9.1] — 2026-09-10

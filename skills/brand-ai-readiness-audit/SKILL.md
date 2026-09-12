@@ -26,7 +26,7 @@ browsing agents — can reliably **reach**, **render**, **read**, and
 audit run, no exceptions to the schema.
 
 This skill does not itself fetch pages, render DOMs, or classify failures —
-it **sequences the five capability skills** below and is responsible only
+it **sequences the six capability skills** below and is responsible only
 for: preconditions, hand-off contracts between skills, short-circuit logic,
 and final schema conformance (delegated to `freshness-corroboration` for
 assembly, but owned by this skill for validation).
