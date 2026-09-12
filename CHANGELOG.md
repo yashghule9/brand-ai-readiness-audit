@@ -259,7 +259,7 @@ judged too likely to be inaccurate and was not attempted.
     severity, `summary` counts independently recomputable from the
     `findings` array) plus informational — never automatically merged —
     correlation notes when multiple distinct findings affect the exact
-    same set of URLs, as a root-cause hint for a human or Claude to weigh.
+    same set of URLs, as a root-cause hint for a human reviewer to weigh.
   - `braiaudit.pipeline.run_audit()` now tracks `skills_engaged` (which
     producer "sources" actually ran, including query-dependent ones like
     `query-guided-discovery:target_queries`) and threads it through to
@@ -278,10 +278,10 @@ judged too likely to be inaccurate and was not attempted.
 
 ### Added
 
-- Six Claude Agent Skills (`website-observer`, `crawl-render-audit`,
+- Six Agent Skills (`website-observer`, `crawl-render-audit`,
   `content-cleaner`, `query-guided-discovery`, `failure-diagnostics`,
   `freshness-corroboration`) plus a root orchestrator SKILL.md, all
-  conforming to the two-level disclosure format (YAML frontmatter trigger +
+  conforming to the agentskills.io SKILL.md format (YAML frontmatter +
   body directives).
 - The Web Failure Ontology (`skills/failure-diagnostics/references/ontology.yaml`),
   covering 17 failure modes across 5 categories (Rendering & Execution,
