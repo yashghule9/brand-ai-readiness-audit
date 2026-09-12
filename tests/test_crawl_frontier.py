@@ -1238,3 +1238,41 @@ def test_www_fallback_url_unit_boundaries():
         )
         is None
     )
+
+
+@__import__("responses").activate
+def test_seed_redirect_to_third_party_does_not_expand_crawl_scope():
+    """Regression: a depth-0 seed redirect used to add the redirect target's
+    host to allowed_hosts unconditionally, so a parked-domain or short-link
+    redirect authorised crawling the third party's entire link graph."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    body = (
+        '<html><body><main><h1>Parked</h1>'
+        '<a href="https://parked-landing.example.org/buy">Buy this domain</a>'
+        "<p>" + "Placeholder content. " * 30 + "</p></main></body></html>"
+    )
+    responses.add(
+        responses.GET, "https://example.com/", status=301, headers={"Location": "https://parked-landing.example.org/"}
+    )
+    # No stubs for parked-landing.example.org — if the crawler followed the
+    # redirect host's link graph, `responses` raises ConnectionError.
+    responses.add(
+        responses.GET,
+        "https://parked-landing.example.org/",
+        body=body,
+        status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com", options=AuditOptions(max_pages=5, max_render_pages=0, max_depth=2)
+    )
+
+    touched = {u for f in report["findings"] for u in f["affected_urls"]}
+    touched |= set(report["meta"]["crawl"]["pages_unreachable"])
+    assert all("example.org" not in u for u in touched), touched

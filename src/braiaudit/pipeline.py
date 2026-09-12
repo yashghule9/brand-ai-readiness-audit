@@ -169,6 +169,11 @@ def run_audit(
         # expansion is honoured.
         if fetch.site_label(candidate_url) not in allowed_hosts:
             return None
+        # Discovery candidates run between frontier items, where the main
+        # time-budget check never sees them; without this, one slow host's
+        # candidate fetches could run the audit far past its budget.
+        if time.monotonic() - started_at > options.max_runtime_seconds:
+            return None
         if candidate_url in text_cache:
             return text_cache[candidate_url]
         text = _observe_and_clean_text(candidate_url, options, session, origin_cache)
@@ -219,8 +224,14 @@ def run_audit(
             # degraded the crawl to one page. Scoped to depth 0 only: a
             # redirect met later, mid-crawl, never expands scope — that
             # boundary is what stops the crawler wandering onto a third
-            # party through an ordinary link.
-            allowed_hosts.add(fetch.site_label(observed["final_url"]))
+            # party through an ordinary link. Same registrable domain only:
+            # a depth-0 seed redirected to an unrelated host (parked domain,
+            # short-link) must not authorise that host's whole link graph.
+            final_host = fetch.site_label(observed["final_url"])
+            if fetch.registrable_domain(final_host) == fetch.registrable_domain(
+                fetch.site_label(url)
+            ):
+                allowed_hosts.add(final_host)
 
         if depth == 0 and not www_fallback_tried:
             # The apex could not be read for a reason that is not a refusal,

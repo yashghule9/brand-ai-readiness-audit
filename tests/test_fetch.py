@@ -408,3 +408,80 @@ def test_error_stub_seed_yields_an_access_finding_and_no_fabricated_defects():
     assert report["meta"]["crawl"]["pages_rendered"] == 0
     # The stub's title must never become a brand name for the site.
     assert report["site_info"]["brand_name_candidates"] == []
+
+
+@responses.activate
+def test_robots_disallow_is_reevaluated_per_path_within_one_origin():
+    """Regression: the per-origin robots cache used to freeze the allow/deny
+    verdict of the first URL, so a robots file allowing `/` but disallowing
+    `/private/` was treated as allow-all for every later page."""
+    responses.add(
+        responses.GET,
+        "https://example.com/robots.txt",
+        body="User-agent: *\nDisallow: /private\n",
+        status=200,
+    )
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><body><p>Welcome</p></body></html>",
+        status=200,
+        content_type="text/html",
+    )
+
+    cache: dict = {}
+    allowed = observe("https://example.com/", user_agent="TestBot/1.0", origin_cache=cache)
+    blocked = observe(
+        "https://example.com/private/x", user_agent="TestBot/1.0", origin_cache=cache
+    )
+
+    assert "robots_txt_disallow" not in allowed["signals"]
+    assert allowed["http_status"] == 200
+    # No stub for /private/x: if observe() fetched it despite the disallow,
+    # `responses` raises ConnectionError and fails the test.
+    assert "robots_txt_disallow" in blocked["signals"]
+    assert blocked["http_status"] is None
+
+
+@responses.activate
+def test_long_retry_after_is_honoured_without_an_immediate_refetch():
+    """Regression: a 429 with Retry-After of an hour used to be re-requested
+    5 seconds later; the server's requested delay must be taken at its word."""
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        status=429,
+        headers={"Retry-After": "3600"},
+    )
+
+    result = observe("https://example.com/", user_agent="TestBot/1.0")
+
+    assert "http_429_rate_limit" in result["signals"]
+    assert responses.assert_call_count("https://example.com/", 1) is True  # no retry GET
+
+
+@responses.activate
+def test_xhtml_page_body_is_read_not_silently_dropped():
+    """Regression: `application/xhtml+xml` matched no body-extraction rule,
+    so a 200 XHTML page returned zero signals — a false clean."""
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(
+        responses.GET,
+        "https://example.com/",
+        body="<html><head><title>XHTML page</title></head>"
+        "<body><p>"
+        + "A real page with real prose content for the reader. " * 10
+        + "</p></body></html>",
+        status=200,
+        content_type="application/xhtml+xml",
+    )
+
+    result = observe("https://example.com/", user_agent="TestBot/1.0")
+
+    assert result["http_status"] == 200
+    assert result["raw_text_length"] > 0
+    assert "low_raw_text" not in result["signals"]

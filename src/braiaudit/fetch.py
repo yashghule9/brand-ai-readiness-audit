@@ -202,16 +202,36 @@ def _origin(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-def fetch_robots(url: str, user_agent: str, session: requests.Session) -> RobotsDecision:
+def _load_robots_parser(
+    url: str, session: requests.Session
+) -> urllib.robotparser.RobotFileParser | None:
+    """Fetch and parse /robots.txt once per origin; None when absent/unreadable.
+
+    The parser is cached so `can_fetch` can be re-evaluated per URL: a robots
+    file that allows `/` but disallows `/private/` is only honoured correctly
+    if the verdict is recomputed for each page's path, not frozen at the first
+    URL that happened to hit this origin.
+    """
     robots_url = urllib.parse.urljoin(_origin(url), "/robots.txt")
     rp = urllib.robotparser.RobotFileParser()
     try:
         resp = session.get(robots_url, timeout=10)
         if resp.status_code >= 400:
-            return RobotsDecision(fetched=False, disallowed_for_agent=False,
-                                   crawl_delay_seconds=None, sitemap_urls=[])
+            return None
         rp.parse(resp.text.splitlines())
+        return rp
     except requests.RequestException:
+        return None
+
+
+def fetch_robots(url: str, user_agent: str, session: requests.Session) -> RobotsDecision:
+    return _decide_robots(_load_robots_parser(url, session), url, user_agent)
+
+
+def _decide_robots(
+    rp: urllib.robotparser.RobotFileParser | None, url: str, user_agent: str
+) -> RobotsDecision:
+    if rp is None:
         return RobotsDecision(fetched=False, disallowed_for_agent=False,
                                crawl_delay_seconds=None, sitemap_urls=[])
 
@@ -518,7 +538,7 @@ def observe(
     user_agent: str = DEFAULT_USER_AGENT,
     timeout_ms: int = 10000,
     session: requests.Session | None = None,
-    origin_cache: dict[str, tuple[RobotsDecision, list[str]]] | None = None,
+    origin_cache: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the full website-observer pass for one URL. Returns a dict
     validated against schemas/website-observer.output.schema.json.
@@ -577,14 +597,18 @@ def observe(
     origin = _origin(url)
     cached = origin_cache.get(origin) if origin_cache is not None else None
     if cached is None:
-        robots = fetch_robots(url, user_agent, session)
+        robots_parser = _load_robots_parser(url, session)
         sitemap_urls, sitemap_lastmods = fetch_sitemap_urls(
-            origin, robots.sitemap_urls, session
+            origin, list(robots_parser.site_maps() or []) if robots_parser else [], session
         )
         if origin_cache is not None:
-            origin_cache[origin] = (robots, sitemap_urls, sitemap_lastmods)
+            origin_cache[origin] = (robots_parser, sitemap_urls, sitemap_lastmods)
     else:
-        robots, sitemap_urls, sitemap_lastmods = cached
+        robots_parser, sitemap_urls, sitemap_lastmods = cached
+    # Per-URL decision, always recomputed: disallow verdicts are path-scoped,
+    # so reusing the seed's verdict for every later page on this origin would
+    # fetch URLs the robots file explicitly disallows.
+    robots = _decide_robots(robots_parser, url, user_agent)
 
     result["robots_txt"] = {
         "fetched": robots.fetched,
@@ -644,8 +668,13 @@ def observe(
 
     if resp.status_code == 429:
         retry_after = resp.headers.get("Retry-After")
-        if retry_after and retry_after.isdigit():
-            time.sleep(min(float(retry_after), 5))
+        # Retry only when the server asked for a short wait we can honour in
+        # this process. A Retry-After of minutes or hours must be taken at its
+        # word: sleeping capped at 5s and re-GETting anyway would hit the host
+        # seconds after it explicitly asked for an hour — the opposite of the
+        # politeness this crawler promises.
+        if retry_after and retry_after.isdigit() and float(retry_after) <= 5:
+            time.sleep(float(retry_after))
             resp = session.get(url, timeout=timeout, headers={"User-Agent": user_agent})
             result["http_status"] = resp.status_code
         if resp.status_code == 429:
@@ -653,7 +682,11 @@ def observe(
             validate(result, "website-observer")
             return result
 
-    body = resp.text if "text" in (result["content_type"] or "text/html") else ""
+    # `application/xhtml+xml` carries no "text" substring but is real HTML;
+    # excluding its body here silently dropped such 200 pages with zero
+    # signals — a false clean.
+    ct = result["content_type"] or "text/html"
+    body = resp.text if ("text" in ct or "html" in ct or "xml" in ct) else ""
 
     fingerprint = _detect_anti_bot(resp.status_code, result["headers"], body)
     if fingerprint:
