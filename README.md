@@ -45,7 +45,7 @@ Opening this repository in Claude Code instead? The skill auto-loads from
 `.claude/skills/` — just ask: *"run a brand AI readiness audit on
 example.com"*.
 
-Run the test suite with `pytest -q` (232 tests, no network required).
+Run the test suite with `pytest -q` (236 tests, no network required).
 
 ## Quickstart
 
@@ -176,7 +176,7 @@ brand-ai-readiness-audit/
 ├── schemas/                          # JSON Schemas for every I/O contract (source of truth)
 ├── src/braiaudit/                    # Reference implementation, one module per skill
 ├── docs/                             # Phase closeout notes and known limitations
-├── tests/                            # pytest suite (232 tests) + HTML fixtures
+├── tests/                            # pytest suite (236 tests) + HTML fixtures
 ├── tools/lint_skills.py              # CI-enforced SKILL.md / ontology / marketplace linter
 ├── .github/workflows/ci.yml          # lint + skill-lint + schema-validate + pytest, py3.10–3.13
 └── skills/
@@ -370,7 +370,7 @@ above) — the same findings array either way, but a very different claim.
 ## Testing & quality
 
 ```bash
-pytest -q                                    # 232 tests, no network required
+pytest -q                                    # 236 tests, no network required
 ruff check src tests tools                   # lint
 python tools/lint_skills.py                  # SKILL.md / ontology / marketplace lint
 braiaudit validate marketplace.json --schema marketplace
