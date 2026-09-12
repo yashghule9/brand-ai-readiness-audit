@@ -485,3 +485,169 @@ def test_xhtml_page_body_is_read_not_silently_dropped():
     assert result["http_status"] == 200
     assert result["raw_text_length"] > 0
     assert "low_raw_text" not in result["signals"]
+
+
+# --- Sitemap handling: index expansion, bounded and honest -----------------
+
+def _sitemap(loc_mod_pairs, kind="urlset"):
+    body = "".join(
+        f"<{'url' if kind == 'urlset' else 'sitemap'}>"
+        f"<loc>{loc}</loc>{f'<lastmod>{mod}</lastmod>' if mod else ''}"
+        f"</{'url' if kind == 'urlset' else 'sitemap'}>"
+        for loc, mod in loc_mod_pairs
+    )
+    root = "urlset" if kind == "urlset" else "sitemapindex"
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<{root} xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</{root}>'
+    )
+
+
+@responses.activate
+def test_sitemap_index_expands_children():
+    """A sitemapindex's <loc> entries are child sitemaps, not pages. The old
+    parser returned them as the page-URL set, so every real page read as
+    'not in sitemap' and per-page lastmod analysis ran over child dates."""
+    import requests as rq
+
+    from braiaudit.fetch import fetch_sitemap_urls
+
+    responses.add(
+        responses.GET, "https://example.com/sitemap.xml",
+        body=_sitemap([
+            ("https://example.com/sitemap-pages.xml", "2026-01-01"),
+            ("https://example.com/sitemap-posts.xml", "2026-02-01"),
+        ], kind="sitemapindex"), status=200,
+    )
+    responses.add(
+        responses.GET, "https://example.com/sitemap-pages.xml",
+        body=_sitemap([("https://example.com/about", "2026-01-02"),
+                       ("https://example.com/pricing", None)]), status=200,
+    )
+    responses.add(
+        responses.GET, "https://example.com/sitemap-posts.xml",
+        body=_sitemap([("https://example.com/blog/1", "2026-03-03")]), status=200,
+    )
+
+    pages, skipped = fetch_sitemap_urls("https://example.com", [], rq.Session())
+
+    assert all(not url.endswith(".xml") for url in pages)
+    assert set(pages) == {
+        "https://example.com/about",
+        "https://example.com/pricing",
+        "https://example.com/blog/1",
+    }
+    # lastmod is paired with its own page URL, not a parallel list.
+    assert pages["https://example.com/about"] == "2026-01-02"
+    assert pages["https://example.com/pricing"] is None
+    assert pages["https://example.com/blog/1"] == "2026-03-03"
+    assert skipped == []
+
+
+@responses.activate
+def test_sitemap_index_skips_malformed_child():
+    import requests as rq
+
+    from braiaudit.fetch import fetch_sitemap_urls
+
+    responses.add(
+        responses.GET, "https://example.com/sitemap.xml",
+        body=_sitemap([
+            ("https://example.com/sitemap-bad.xml", ""),
+            ("https://example.com/sitemap-good.xml", ""),
+        ], kind="sitemapindex"), status=200,
+    )
+    responses.add(
+        responses.GET, "https://example.com/sitemap-bad.xml",
+        body="<urlset><loc>unclosed", status=200,
+    )
+    responses.add(
+        responses.GET, "https://example.com/sitemap-good.xml",
+        body=_sitemap([("https://example.com/ok", "2026-04-01")]), status=200,
+    )
+
+    pages, skipped = fetch_sitemap_urls("https://example.com", [], rq.Session())
+
+    assert pages == {"https://example.com/ok": "2026-04-01"}
+
+
+@responses.activate
+def test_sitemap_index_skips_nested_index_and_cross_origin_children():
+    """A nested index and a third-party child sitemap must never have their
+    URLs read as pages; both are skipped with a recorded reason."""
+    import requests as rq
+
+    from braiaudit.fetch import fetch_sitemap_urls
+
+    responses.add(
+        responses.GET, "https://example.com/sitemap.xml",
+        body=_sitemap([
+            ("https://example.com/sitemap-inner.xml", ""),
+            ("https://other.example.org/sitemap.xml", ""),
+        ], kind="sitemapindex"), status=200,
+    )
+    responses.add(
+        responses.GET, "https://example.com/sitemap-inner.xml",
+        body=_sitemap([
+            ("https://example.com/sitemap-deeper.xml", ""),
+        ], kind="sitemapindex"), status=200,
+    )
+
+    pages, skipped = fetch_sitemap_urls("https://example.com", [], rq.Session())
+
+    assert pages == {}
+    assert any("nested sitemap index" in s for s in skipped)
+    assert any("cross-origin" in s for s in skipped)
+    # The nested index's own children were never requested.
+    assert not any("sitemap-deeper" in c.request.url for c in responses.calls)
+
+
+@responses.activate
+def test_plain_urlset_returns_pages_with_lastmods():
+    import requests as rq
+
+    from braiaudit.fetch import fetch_sitemap_urls
+
+    responses.add(
+        responses.GET, "https://example.com/sitemap.xml",
+        body=_sitemap([("https://example.com/a", "2026-05-01"),
+                       ("https://example.com/b", "2026-06-01")]), status=200,
+    )
+
+    pages, skipped = fetch_sitemap_urls("https://example.com", [], rq.Session())
+
+    assert pages == {"https://example.com/a": "2026-05-01",
+                     "https://example.com/b": "2026-06-01"}
+    assert skipped == []
+
+
+# --- URL canonicalization: case-insensitive hosts, case-sensitive paths ----
+
+def test_canonical_lowercases_host_and_preserves_path_case():
+    from braiaudit.fetch import canonical_crawl_url, site_label
+
+    assert site_label("EXAMPLE.COM") == "example.com"
+    assert (
+        canonical_crawl_url("https://EXAMPLE.COM/docs/API#Top")
+        == "https://example.com/docs/API"
+    )
+    # The path is case-sensitive; a content-management URL that differs only
+    # by path case is a different page, not a duplicate spelling.
+    assert canonical_crawl_url("https://example.com/About") == "https://example.com/About"
+
+
+def test_tracking_params_stripped_meaningful_params_preserved():
+    from braiaudit.fetch import canonical_crawl_url
+
+    assert canonical_crawl_url("https://example.com/pricing?utm_source=x") == (
+        "https://example.com/pricing"
+    )
+    assert canonical_crawl_url("https://example.com/pricing?page=2") == (
+        "https://example.com/pricing?page=2"
+    )
+    assert canonical_crawl_url("https://example.com/product?id=1&utm_source=x&fbclid=abc") == (
+        "https://example.com/product?id=1"
+    )
+    assert canonical_crawl_url("https://example.com/search?q=things+to+buy&gclid=xyz") == (
+        "https://example.com/search?q=things+to+buy"
+    )

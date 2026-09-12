@@ -124,6 +124,7 @@ def run_audit(
 
     findings_by_url: dict[str, list[dict[str, Any]]] = {}
     pages_unreachable: list[str] = []
+    connection_failures = 0
     # Pages that actually yielded content the readiness checks could run
     # against — reached *and* not halted. `pages_crawled` counts a blocked
     # or challenged page, because it was fetched; this does not, because
@@ -250,6 +251,8 @@ def run_audit(
 
         if observed.get("http_status") is None:
             pages_unreachable.append(url)
+            if "connection_failed" in observed["signals"]:
+                connection_failures += 1
             findings_by_url[url] = page_findings
             continue
         if _HALT_SIGNALS & set(observed["signals"]):
@@ -428,15 +431,23 @@ def run_audit(
         seed = (
             fetch.canonical_crawl_url(seed_urls[0]) if seed_urls else f"https://{site}/"
         )
-        attempted = len(findings_by_url) or len(seed_urls)
+        # Distinguish "the site did not answer" from "the site refused": when
+        # every failure was a connection failure, the audit never got any
+        # HTTP response at all — and it attempted HTTPS only, so an HTTP-only
+        # site reads as "not assessable over HTTPS", not "down".
+        https_note = (
+            " The audit could not assess the site over HTTPS; HTTP fallback "
+            "is not attempted."
+            if connection_failures and connection_failures == len(pages_unreachable)
+            else ""
+        )
         findings_by_url.setdefault(seed, []).extend(
             _diagnose(
                 seed,
                 {"signals": ["no_analysable_page_evidence"]},
                 evidence_hint=(
-                    f"{attempted} URL(s) attempted, "
-                    f"{len(pages_unreachable)} unreachable; no response was "
-                    "readable as the site's own content."
+                    f"No response was readable as the site's own "
+                    f"content.{https_note}"
                 ),
             )
         )

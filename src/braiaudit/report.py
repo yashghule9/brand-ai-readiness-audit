@@ -127,6 +127,10 @@ def assemble_report(
                 else (
                     f"No page could be crawled; "
                     f"{len(f['_affected_urls'])} URL(s) attempted."
+                    # The finding's evidence carries the audit-specific why
+                    # (e.g. every failure was a connection failure, so the
+                    # site was never assessed over HTTPS).
+                    + (f" {f['evidence']}" if f["evidence"] else "")
                 )
             ),
             "resolution": f["suggested_action"]["summary"],

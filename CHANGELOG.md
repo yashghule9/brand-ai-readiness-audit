@@ -6,6 +6,54 @@ All notable changes to this project are documented here. Format follows
 (`marketplace.json`'s `version` tracks the *skill definitions*
 separately and moves more slowly).
 
+## [0.9.2] — 2026-09-13
+
+### Fixed
+
+- **Sitemap index files were parsed as page lists.** A `sitemapindex`
+  document's `<loc>` entries are child sitemaps, but the sitemap fetcher
+  returned them as the site's page-URL set — so on any site publishing an
+  index (standard for large sites), every crawled page read as "not in
+  sitemap" and lastmod analysis ran over child-sitemap dates. `urlset` and
+  `sitemapindex` are now distinguished by root element; an index expands into
+  its children (same origin, deduplicated, capped at 5 fetches, one level
+  deep), child `<lastmod>` values stay paired with their own page URL, and a
+  child that is itself an index, lives on another origin, or fails to parse
+  is skipped and recorded instead of having its URLs mistaken for pages.
+  Verified live: zoho.com's index now yields 506 real page URLs where the
+  old code returned only its child-sitemap URLs. Also fixed the
+  ElementTree falsiness trap this rewrite exposed: a namespaced element
+  found by `find()` is falsy when childless, so `find(a) or find(b)` was
+  silently discarding located `<loc>`/`<lastmod>` nodes.
+- **A seed typed with an uppercase domain collapsed the crawl to one page.**
+  Hosts are case-insensitive but URL normalization lowercased nothing, so
+  `EXAMPLE.COM` left the uppercase host in the crawl scope while the page's
+  absolute lowercase links were rejected as cross-host. Only the netloc is
+  lowercased (paths stay case-sensitive), in both `normalize_url` and
+  `canonical_crawl_url`.
+- **`QUERY_REGISTER_MISMATCH` fired on every non-English page.** The
+  question-register check matches English question words only, so any page
+  declared `lang="fr"` (etc.) with headings was scored down for language
+  mismatch. The check is now skipped when the declared language is not
+  `en-*`; pages without a `lang` attribute keep the English evaluation, and
+  the ontology entry documents the limitation.
+- **Tracking parameters split one page into several crawl entries.**
+  `/pricing?utm_source=x` now canonicalizes to `/pricing`; a fixed set of
+  click identifiers (`fbclid`, `gclid`, `dclid`, `msclkid`, `mc_cid`,
+  `mc_eid`) plus any `utm_*` prefix is removed by rebuilding the query with
+  `parse_qsl`/`urlencode`. Meaningful parameters (`?page=2`, `?id=1`,
+  `?q=…`) are preserved exactly.
+- **The HTTPS-only scope is now stated on connection-failure abstentions.**
+  When every unreachable URL failed at the connection layer, the
+  `NO_ANALYSABLE_PAGE_EVIDENCE` limitation's detail says the audit could
+  not assess the site over HTTPS and that HTTP fallback is not attempted —
+  an HTTP-only site reads as "not assessable over HTTPS", not "down".
+
+### Added
+
+- `page_lang` and `sitemap_skipped_children` fields on the website-observer
+  output (and schema); suite grew 236 → 247 regression tests.
+
 ## [0.9.1] — 2026-09-10
 
 ### Fixed
