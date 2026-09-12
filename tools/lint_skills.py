@@ -8,7 +8,7 @@ Checks:
     `description`
   - `name` is lowercase kebab-case, <= 64 chars, and matches its directory
     name (or, for the root SKILL.md, matches marketplace.json's
-    `orchestrator`)
+    `entrypoint` id)
   - `description` is non-empty and reasonably substantial (a real trigger
     phrase, not a placeholder)
   - every skill listed in marketplace.json has a SKILL.md that exists, and

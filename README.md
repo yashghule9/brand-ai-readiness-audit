@@ -45,7 +45,7 @@ Opening this repository in Claude Code instead? The skill auto-loads from
 `.claude/skills/` — just ask: *"run a brand AI readiness audit on
 example.com"*.
 
-Run the test suite with `pytest -q` (232 tests, no network required).
+Run the test suite with `pytest -q` (247 tests, no network required).
 
 ## Quickstart
 
@@ -126,8 +126,12 @@ The entrypoint owns sequencing and hand-off contracts, not detection. It
 runs **observe → render (conditional) → clean → discover → diagnose →
 corroborate**, and the separation is real rather than cosmetic:
 
-- **Only `website-observer` and `crawl-render-audit` touch the network.**
-  `content-cleaner`, `failure-diagnostics` and `freshness-corroboration` are
+- **Only `website-observer`, `crawl-render-audit`, and the off-site
+  corroboration step inside `freshness-corroboration` touch the network.**
+  The corroboration step makes read-only public-record lookups
+  (Wikipedia/Wikidata entity existence, a Wayback Machine first-seen date)
+  for brand-name candidates the site itself declared. `content-cleaner`,
+  `failure-diagnostics` and everything else in `freshness-corroboration` are
   pure transforms over data already collected, which is why they are
   deterministic and unit-testable without mocking HTTP.
 - **Only `failure-diagnostics` decides what counts as a problem.** Every
@@ -172,7 +176,7 @@ brand-ai-readiness-audit/
 ├── schemas/                          # JSON Schemas for every I/O contract (source of truth)
 ├── src/braiaudit/                    # Reference implementation, one module per skill
 ├── docs/                             # Phase closeout notes and known limitations
-├── tests/                            # pytest suite (232 tests) + HTML fixtures
+├── tests/                            # pytest suite (247 tests) + HTML fixtures
 ├── tools/lint_skills.py              # CI-enforced SKILL.md / ontology / marketplace linter
 ├── .github/workflows/ci.yml          # lint + skill-lint + schema-validate + pytest, py3.10–3.13
 └── skills/
@@ -366,7 +370,7 @@ above) — the same findings array either way, but a very different claim.
 ## Testing & quality
 
 ```bash
-pytest -q                                    # 232 tests, no network required
+pytest -q                                    # 247 tests, no network required
 ruff check src tests tools                   # lint
 python tools/lint_skills.py                  # SKILL.md / ontology / marketplace lint
 braiaudit validate marketplace.json --schema marketplace

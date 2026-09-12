@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "braiaudit"
-version = "0.9.1"
+version = "0.9.2"
 description = "Brand AI Readiness Audit — reference implementation of the brand-ai-readiness-audit Claude Agent Skill set."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,8 +41,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/example/brand-ai-readiness-audit"
-Issues = "https://github.com/example/brand-ai-readiness-audit/issues"
+Homepage = "https://github.com/yashghule9/brand-ai-readiness-audit"
+Issues = "https://github.com/yashghule9/brand-ai-readiness-audit/issues"
 
 [project.scripts]
 braiaudit = "braiaudit.cli:main"

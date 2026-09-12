@@ -190,6 +190,20 @@
     "declared_brand_name": {
       "type": "string",
       "description": "The brand name the site deliberately declares, from Organization.name or og:site_name only. Page <title> is excluded because it typically contains rather than states the brand. Empty when the site declares neither."
+    },
+    "page_lang": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Declared document language from the html lang attribute, or null when absent."
+    },
+    "sitemap_skipped_children": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Child sitemaps deliberately not expanded (nested index or cross-origin), with the reason."
     }
   }
 }

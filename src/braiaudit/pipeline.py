@@ -124,6 +124,7 @@ def run_audit(
 
     findings_by_url: dict[str, list[dict[str, Any]]] = {}
     pages_unreachable: list[str] = []
+    connection_failures = 0
     # Pages that actually yielded content the readiness checks could run
     # against — reached *and* not halted. `pages_crawled` counts a blocked
     # or challenged page, because it was fetched; this does not, because
@@ -168,6 +169,11 @@ def run_audit(
         # `allowed_hosts` resolves at call time, so the seed's apex<->www
         # expansion is honoured.
         if fetch.site_label(candidate_url) not in allowed_hosts:
+            return None
+        # Discovery candidates run between frontier items, where the main
+        # time-budget check never sees them; without this, one slow host's
+        # candidate fetches could run the audit far past its budget.
+        if time.monotonic() - started_at > options.max_runtime_seconds:
             return None
         if candidate_url in text_cache:
             return text_cache[candidate_url]
@@ -219,8 +225,14 @@ def run_audit(
             # degraded the crawl to one page. Scoped to depth 0 only: a
             # redirect met later, mid-crawl, never expands scope — that
             # boundary is what stops the crawler wandering onto a third
-            # party through an ordinary link.
-            allowed_hosts.add(fetch.site_label(observed["final_url"]))
+            # party through an ordinary link. Same registrable domain only:
+            # a depth-0 seed redirected to an unrelated host (parked domain,
+            # short-link) must not authorise that host's whole link graph.
+            final_host = fetch.site_label(observed["final_url"])
+            if fetch.registrable_domain(final_host) == fetch.registrable_domain(
+                fetch.site_label(url)
+            ):
+                allowed_hosts.add(final_host)
 
         if depth == 0 and not www_fallback_tried:
             # The apex could not be read for a reason that is not a refusal,
@@ -239,6 +251,8 @@ def run_audit(
 
         if observed.get("http_status") is None:
             pages_unreachable.append(url)
+            if "connection_failed" in observed["signals"]:
+                connection_failures += 1
             findings_by_url[url] = page_findings
             continue
         if _HALT_SIGNALS & set(observed["signals"]):
@@ -417,15 +431,23 @@ def run_audit(
         seed = (
             fetch.canonical_crawl_url(seed_urls[0]) if seed_urls else f"https://{site}/"
         )
-        attempted = len(findings_by_url) or len(seed_urls)
+        # Distinguish "the site did not answer" from "the site refused": when
+        # every failure was a connection failure, the audit never got any
+        # HTTP response at all — and it attempted HTTPS only, so an HTTP-only
+        # site reads as "not assessable over HTTPS", not "down".
+        https_note = (
+            " The audit could not assess the site over HTTPS; HTTP fallback "
+            "is not attempted."
+            if connection_failures and connection_failures == len(pages_unreachable)
+            else ""
+        )
         findings_by_url.setdefault(seed, []).extend(
             _diagnose(
                 seed,
                 {"signals": ["no_analysable_page_evidence"]},
                 evidence_hint=(
-                    f"{attempted} URL(s) attempted, "
-                    f"{len(pages_unreachable)} unreachable; no response was "
-                    "readable as the site's own content."
+                    f"No response was readable as the site's own "
+                    f"content.{https_note}"
                 ),
             )
         )

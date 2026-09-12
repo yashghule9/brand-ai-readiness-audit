@@ -594,6 +594,10 @@ failure_modes:
       lose the retrieval race to third-party listicles that mirror the
       query's own phrasing. This is a content-authoring problem rather than
       a technical defect, which is why purely technical audits miss it.
+      This mode currently evaluates English-oriented question/register
+      patterns only. Pages explicitly declared as non-English (html lang)
+      are not evaluated at all; pages without a declared language may still
+      produce language-sensitive results.
     remediation: >
       Add headings phrased the way customers ask: "How much does the
       <product> cost?", "Which <product> is best for <use case>?". Mirror

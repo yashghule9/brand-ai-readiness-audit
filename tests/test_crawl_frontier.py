@@ -4,6 +4,7 @@ without the optional render backend."""
 
 from __future__ import annotations
 
+import json
 import urllib.robotparser
 
 import pytest
@@ -1238,3 +1239,111 @@ def test_www_fallback_url_unit_boundaries():
         )
         is None
     )
+
+
+@__import__("responses").activate
+def test_seed_redirect_to_third_party_does_not_expand_crawl_scope():
+    """Regression: a depth-0 seed redirect used to add the redirect target's
+    host to allowed_hosts unconditionally, so a parked-domain or short-link
+    redirect authorised crawling the third party's entire link graph."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    body = (
+        '<html><body><main><h1>Parked</h1>'
+        '<a href="https://parked-landing.example.org/buy">Buy this domain</a>'
+        "<p>" + "Placeholder content. " * 30 + "</p></main></body></html>"
+    )
+    responses.add(
+        responses.GET, "https://example.com/", status=301, headers={"Location": "https://parked-landing.example.org/"}
+    )
+    # No stubs for parked-landing.example.org — if the crawler followed the
+    # redirect host's link graph, `responses` raises ConnectionError.
+    responses.add(
+        responses.GET,
+        "https://parked-landing.example.org/",
+        body=body,
+        status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "example.com", options=AuditOptions(max_pages=5, max_render_pages=0, max_depth=2)
+    )
+
+    touched = {u for f in report["findings"] for u in f["affected_urls"]}
+    touched |= set(report["meta"]["crawl"]["pages_unreachable"])
+    assert all("example.org" not in u for u in touched), touched
+
+
+@__import__("responses").activate
+def test_uppercase_seed_keeps_lowercase_links_in_scope():
+    """Regression: hosts are case-insensitive but the normalizer lowercased
+    nothing, so a seed typed as EXAMPLE.COM left 'EXAMPLE.COM' in
+    allowed_hosts while the page's absolute lowercase links were rejected by
+    the frontier guard — silently collapsing the audit to one page."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://EXAMPLE.COM/robots.txt", status=404)
+    responses.add(responses.GET, "https://EXAMPLE.COM/sitemap.xml", status=404)
+    home = (
+        '<html><body><main><h1>Home</h1>'
+        '<a href="https://example.com/about">About</a>'
+        "<p>" + "Example sells things. " * 30 + "</p></main></body></html>"
+    )
+    about = (
+        '<html><body><main><h1>About</h1>'
+        "<p>" + "About Example. " * 30 + "</p></main></body></html>"
+    )
+    responses.add(
+        responses.GET, "https://EXAMPLE.COM/", body=home, status=200,
+        content_type="text/html",
+    )
+    responses.add(
+        responses.GET, "https://example.com/about", body=about, status=200,
+        content_type="text/html",
+    )
+
+    report = run_audit(
+        "EXAMPLE.COM",
+        options=AuditOptions(max_pages=5, max_render_pages=0, max_depth=2, corroborate=False),
+    )
+
+    crawled = {u for f in report["findings"] for u in f["affected_urls"]}
+    assert any("/about" in u for u in crawled), (
+        f"lowercase links fell out of scope: {crawled}"
+    )
+
+
+@__import__("responses").activate
+def test_connection_failure_abstention_reports_https_only_scope():
+    """When every failure is a connection failure the audit got no HTTP
+    response at all. The abstention must say the audit attempted HTTPS only
+    rather than implying the site is down."""
+    import requests
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://unreachable.invalid/robots.txt", status=404)
+    responses.add(responses.GET, "https://unreachable.invalid/sitemap.xml", status=404)
+    responses.add(
+        responses.GET, "https://unreachable.invalid/",
+        body=requests.ConnectionError("no route to host"),
+    )
+
+    report = run_audit(
+        "unreachable.invalid",
+        options=AuditOptions(max_pages=1, max_render_pages=0, corroborate=False),
+    )
+
+    assert report["summary"]["readiness_score"] is None
+    # The HTTPS-only scope note rides on the abstention limitation, not on a
+    # scored finding.
+    everywhere = json.dumps(report)
+    assert "HTTPS" in everywhere and "HTTP fallback" in everywhere

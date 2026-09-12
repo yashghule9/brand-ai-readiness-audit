@@ -104,6 +104,15 @@ def clean(url: str, html: str, source: str = "raw") -> dict[str, Any]:
     original_bytes = len(html.encode("utf-8"))
     soup = BeautifulSoup(html, "html.parser")
 
+    # The question-register check below matches English question words only,
+    # so on a page the site itself declares non-English the resulting finding
+    # would report language, not a defect. ponytail: trusts the declared
+    # lang attribute; script-based language detection is the upgrade path,
+    # and a page with no lang attribute keeps today's English evaluation.
+    html_el = soup.find("html")
+    page_lang = (html_el.get("lang") or "") if html_el else ""
+    english_enough = not page_lang or page_lang.lower().startswith("en")
+
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
     for comment in soup.find_all(string=lambda s: s.__class__.__name__ == "Comment"):
@@ -151,7 +160,7 @@ def clean(url: str, html: str, source: str = "raw") -> dict[str, Any]:
         not headings or len(clean_text) / len(headings) > _CHARS_PER_HEADING
     ):
         signals.append("wall_of_text_structure")
-    if heading_texts and not question_shaped:
+    if english_enough and heading_texts and not question_shaped:
         signals.append("no_question_shaped_headings")
     if (
         len(clean_text) > _MIN_LENGTH_FOR_FOLD_CHECK

@@ -147,6 +147,11 @@ def normalize_url(target: str) -> str:
     if not urllib.parse.urlparse(target).scheme:
         target = f"https://{target}"
     parsed = urllib.parse.urlparse(target)
+    # Hosts are case-insensitive; the path is not. Lowercasing only the
+    # netloc keeps EXAMPLE.COM/docs/API canonical to example.com while
+    # preserving the path spelling the site itself distinguishes.
+    # ponytail: HTTPS-only by construction here — no http:// fallback.
+    parsed = parsed._replace(netloc=parsed.netloc.lower())
     if not parsed.path:
         parsed = parsed._replace(path="/")
     return urllib.parse.urlunparse(parsed)
@@ -202,16 +207,36 @@ def _origin(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-def fetch_robots(url: str, user_agent: str, session: requests.Session) -> RobotsDecision:
+def _load_robots_parser(
+    url: str, session: requests.Session
+) -> urllib.robotparser.RobotFileParser | None:
+    """Fetch and parse /robots.txt once per origin; None when absent/unreadable.
+
+    The parser is cached so `can_fetch` can be re-evaluated per URL: a robots
+    file that allows `/` but disallows `/private/` is only honoured correctly
+    if the verdict is recomputed for each page's path, not frozen at the first
+    URL that happened to hit this origin.
+    """
     robots_url = urllib.parse.urljoin(_origin(url), "/robots.txt")
     rp = urllib.robotparser.RobotFileParser()
     try:
         resp = session.get(robots_url, timeout=10)
         if resp.status_code >= 400:
-            return RobotsDecision(fetched=False, disallowed_for_agent=False,
-                                   crawl_delay_seconds=None, sitemap_urls=[])
+            return None
         rp.parse(resp.text.splitlines())
+        return rp
     except requests.RequestException:
+        return None
+
+
+def fetch_robots(url: str, user_agent: str, session: requests.Session) -> RobotsDecision:
+    return _decide_robots(_load_robots_parser(url, session), url, user_agent)
+
+
+def _decide_robots(
+    rp: urllib.robotparser.RobotFileParser | None, url: str, user_agent: str
+) -> RobotsDecision:
+    if rp is None:
         return RobotsDecision(fetched=False, disallowed_for_agent=False,
                                crawl_delay_seconds=None, sitemap_urls=[])
 
@@ -229,33 +254,109 @@ def fetch_robots(url: str, user_agent: str, session: requests.Session) -> Robots
     )
 
 
+_SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+# A sitemap index exists precisely because the page URLs live in its children,
+# so an index is expanded into them. ponytail: one level only and capped at
+# _MAX_SITEMAP_CHILDREN fetches; follow nested indexes (and lift the cap) if a
+# corpus ever shows one in the wild.
+_MAX_SITEMAP_CHILDREN = 5
+
+
+def _parse_sitemap_document(content: bytes) -> tuple[str, list[tuple[str, str | None]]]:
+    """Classify a sitemap document and pull out its (loc, lastmod) pairs.
+
+    Returns (kind, entries) where kind is "urlset", "sitemapindex", or
+    "other". lastmod is paired with its own <loc> so per-page dates survive
+    processing instead of collapsing into an order-dependent parallel list.
+    """
+    root = ElementTree.fromstring(content)
+    kind = root.tag.rsplit("}", 1)[-1]
+    entries: list[tuple[str, str | None]] = []
+    for node in root.findall(".//sm:url", _SITEMAP_NS) or root.findall(".//url"):
+        # ElementTree elements are falsy when childless, so the fallbacks
+        # below must be explicit None checks — `a or b` would discard a
+        # found, perfectly good element and keep searching.
+        loc = node.find("sm:loc", _SITEMAP_NS)
+        if loc is None:
+            loc = node.find("loc")
+        if loc is None or not loc.text:
+            continue
+        mod = node.find("sm:lastmod", _SITEMAP_NS)
+        if mod is None:
+            mod = node.find("lastmod")
+        mod_val = mod.text.strip() if mod is not None and mod.text else None
+        entries.append((loc.text.strip(), mod_val))
+    if kind != "urlset" and not entries:
+        for loc in root.findall(".//sm:loc", _SITEMAP_NS) or root.findall(".//loc"):
+            if loc.text:
+                entries.append((loc.text.strip(), None))
+    return kind, entries
+
+
 def fetch_sitemap_urls(
     origin: str, declared: list[str], session: requests.Session
-) -> tuple[list[str], list[str]]:
-    """Fetch sitemap(s) and return (every <loc> URL, every <lastmod> value).
+) -> tuple[dict[str, str | None], list[str]]:
+    """Fetch sitemap(s) and return (page URL -> lastmod, skipped-children notes).
 
-    Best-effort: a missing or malformed sitemap yields empty lists, never an
-    exception. lastmod comes back because a sitemap whose dates are absent or
-    all identical tells a crawler nothing about what changed, which is a
-    staleness signal in its own right.
+    Best-effort: a missing or malformed sitemap yields an empty dict, never an
+    exception. A ``sitemapindex`` is expanded into its child sitemaps (same
+    origin, capped, deduplicated); a child that is itself an index, lives on
+    another origin, or fails to parse is skipped and recorded in the second
+    element rather than having its URLs mistaken for pages. lastmod comes back
+    paired per page because a sitemap whose dates are absent or all identical
+    tells a crawler nothing about what changed — a staleness signal of its own.
     """
+    pages: dict[str, str | None] = {}
+    skipped: list[str] = []
+    visited: set[str] = set()
     candidates = declared or [urllib.parse.urljoin(origin, "/sitemap.xml")]
-    urls: list[str] = []
-    lastmods: list[str] = []
-    for sitemap_url in candidates:
+
+    def read_document(sitemap_url: str) -> tuple[str, list[tuple[str, str | None]]] | None:
+        """Fetch+parse one document. (kind, entries), or None on any failure."""
         try:
             resp = session.get(sitemap_url, timeout=10)
             if resp.status_code != 200:
-                continue
-            root = ElementTree.fromstring(resp.content)
-            ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-            locs = root.findall(".//sm:loc", ns) or root.findall(".//loc")
-            urls.extend(loc.text.strip() for loc in locs if loc.text)
-            mods = root.findall(".//sm:lastmod", ns) or root.findall(".//lastmod")
-            lastmods.extend(m.text.strip() for m in mods if m.text)
+                return None
+            return _parse_sitemap_document(resp.content)
         except (requests.RequestException, ElementTree.ParseError):
+            return None
+
+    for sitemap_url in candidates:
+        if sitemap_url in visited:
             continue
-    return urls, lastmods
+        visited.add(sitemap_url)
+        top = read_document(sitemap_url)
+        if top is None:
+            continue
+        kind, entries = top
+        if kind == "urlset":
+            for loc, mod in entries:
+                pages.setdefault(loc, mod)
+            continue
+        if kind != "sitemapindex":
+            continue
+        index_origin = _origin(sitemap_url)
+        child_budget = _MAX_SITEMAP_CHILDREN
+        for child_url, _ in entries:
+            if child_budget <= 0:
+                break
+            if child_url in pages or child_url in visited:
+                continue
+            if _origin(child_url) != index_origin:
+                skipped.append(f"cross-origin sitemap not fetched: {child_url}")
+                continue
+            visited.add(child_url)
+            child_budget -= 1
+            child = read_document(child_url)
+            if child is None:
+                continue
+            child_kind, child_entries = child
+            if child_kind != "urlset":
+                skipped.append(f"nested sitemap index not expanded: {child_url}")
+                continue
+            for loc, mod in child_entries:
+                pages.setdefault(loc, mod)
+    return pages, skipped
 
 
 def _detect_anti_bot(status_code: int, headers: dict[str, str], body: str) -> str | None:
@@ -319,18 +420,45 @@ def _extract_internal_links(soup: BeautifulSoup, base_url: str) -> list[str]:
     return sorted(links)
 
 
-def canonical_crawl_url(url: str) -> str:
-    """One URL, one spelling: no fragment, no redundant trailing slash.
+# Advertising-attribution parameters: they distinguish one visitor's arrival,
+# never one page's content, so keeping them splits one page into several
+# frontier entries and burns the page budget. Everything else — ?page=2,
+# ?id=1, ?sort=price — addresses real content and is preserved verbatim.
+_TRACKING_PARAMS = frozenset({"fbclid", "gclid", "dclid", "msclkid", "mc_cid", "mc_eid"})
 
-    `/pricing`, `/pricing/` and `/pricing#plans` are the same page to a
-    crawler, and counting them as three would inflate the link graph and
-    waste the page budget.
+
+def _strip_tracking_params(url: str) -> str:
+    """Rebuild the query without known tracking parameters.
+
+    Parsed, not string-filtered: parse_qsl/urlencode round-trip the remaining
+    parameters exactly and drop only the attribution ones (any utm_* prefix,
+    plus the fixed click-identifier set).
+    """
+    parsed = urllib.parse.urlsplit(url)
+    kept = [
+        (k, v)
+        for k, v in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+        if not k.lower().startswith("utm_") and k.lower() not in _TRACKING_PARAMS
+    ]
+    return urllib.parse.urlunsplit(parsed._replace(query=urllib.parse.urlencode(kept)))
+
+
+def canonical_crawl_url(url: str) -> str:
+    """One URL, one spelling: no fragment, no redundant trailing slash, no
+    tracking parameters, lowercase host.
+
+    `/pricing`, `/pricing/`, `/pricing#plans` and `/pricing?utm_source=x` are
+    the same page to a crawler, and counting them as several would inflate
+    the link graph and waste the page budget.
     """
     parsed = urllib.parse.urlparse(url)._replace(fragment="")
+    # Same rule as normalize_url: hosts are case-insensitive, paths are not.
+    parsed = parsed._replace(netloc=parsed.netloc.lower())
     path = parsed.path or "/"
     if len(path) > 1 and path.endswith("/"):
         path = path.rstrip("/") or "/"
-    return urllib.parse.urlunparse(parsed._replace(path=path))
+    canonical = urllib.parse.urlunparse(parsed._replace(path=path))
+    return _strip_tracking_params(canonical) if parsed.query else canonical
 
 
 def _json_ld_blocks(soup: BeautifulSoup) -> list[dict]:
@@ -518,7 +646,7 @@ def observe(
     user_agent: str = DEFAULT_USER_AGENT,
     timeout_ms: int = 10000,
     session: requests.Session | None = None,
-    origin_cache: dict[str, tuple[RobotsDecision, list[str]]] | None = None,
+    origin_cache: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the full website-observer pass for one URL. Returns a dict
     validated against schemas/website-observer.output.schema.json.
@@ -571,20 +699,26 @@ def observe(
         "anti_bot_evidence": "",
         "http_error_evidence": "",
         "internal_links": [],
+        "page_lang": None,
+        "sitemap_skipped_children": [],
         "signals": [],
     }
 
     origin = _origin(url)
     cached = origin_cache.get(origin) if origin_cache is not None else None
     if cached is None:
-        robots = fetch_robots(url, user_agent, session)
-        sitemap_urls, sitemap_lastmods = fetch_sitemap_urls(
-            origin, robots.sitemap_urls, session
+        robots_parser = _load_robots_parser(url, session)
+        sitemap_pages, skipped_children = fetch_sitemap_urls(
+            origin, list(robots_parser.site_maps() or []) if robots_parser else [], session
         )
         if origin_cache is not None:
-            origin_cache[origin] = (robots, sitemap_urls, sitemap_lastmods)
+            origin_cache[origin] = (robots_parser, sitemap_pages, skipped_children)
     else:
-        robots, sitemap_urls, sitemap_lastmods = cached
+        robots_parser, sitemap_pages, skipped_children = cached
+    # Per-URL decision, always recomputed: disallow verdicts are path-scoped,
+    # so reusing the seed's verdict for every later page on this origin would
+    # fetch URLs the robots file explicitly disallows.
+    robots = _decide_robots(robots_parser, url, user_agent)
 
     result["robots_txt"] = {
         "fetched": robots.fetched,
@@ -592,8 +726,9 @@ def observe(
         "crawl_delay_seconds": robots.crawl_delay_seconds,
         "sitemap_urls": robots.sitemap_urls,
     }
-    result["sitemap_present"] = bool(sitemap_urls)
-    result["sitemap_urls"] = sitemap_urls
+    result["sitemap_present"] = bool(sitemap_pages)
+    result["sitemap_urls"] = list(sitemap_pages)
+    result["sitemap_skipped_children"] = list(skipped_children)
 
     # Evaluated before the robots short-circuit below: which AI crawlers this
     # site turns away is worth reporting even when our own agent is also
@@ -644,8 +779,13 @@ def observe(
 
     if resp.status_code == 429:
         retry_after = resp.headers.get("Retry-After")
-        if retry_after and retry_after.isdigit():
-            time.sleep(min(float(retry_after), 5))
+        # Retry only when the server asked for a short wait we can honour in
+        # this process. A Retry-After of minutes or hours must be taken at its
+        # word: sleeping capped at 5s and re-GETting anyway would hit the host
+        # seconds after it explicitly asked for an hour — the opposite of the
+        # politeness this crawler promises.
+        if retry_after and retry_after.isdigit() and float(retry_after) <= 5:
+            time.sleep(float(retry_after))
             resp = session.get(url, timeout=timeout, headers={"User-Agent": user_agent})
             result["http_status"] = resp.status_code
         if resp.status_code == 429:
@@ -653,7 +793,11 @@ def observe(
             validate(result, "website-observer")
             return result
 
-    body = resp.text if "text" in (result["content_type"] or "text/html") else ""
+    # `application/xhtml+xml` carries no "text" substring but is real HTML;
+    # excluding its body here silently dropped such 200 pages with zero
+    # signals — a false clean.
+    ct = result["content_type"] or "text/html"
+    body = resp.text if ("text" in ct or "html" in ct or "xml" in ct) else ""
 
     fingerprint = _detect_anti_bot(resp.status_code, result["headers"], body)
     if fingerprint:
@@ -714,6 +858,8 @@ def observe(
     result["raw_html"] = body
     result["raw_html_bytes"] = len(resp.content)
     soup = BeautifulSoup(body, "html.parser")
+    html_el = soup.find("html")
+    result["page_lang"] = html_el.get("lang") if html_el else None
 
     script_tags = soup.find_all("script")
     result["script_count"] = len(script_tags)
@@ -802,6 +948,9 @@ def observe(
         if age is None or age > _STALE_HEADER_DAYS:
             signals.append("last_modified_stale_or_absent")
 
+        # Per-page lastmod values (paired with their <loc> at parse time), so
+        # the aggregate below describes pages, not child sitemaps.
+        sitemap_lastmods = [m for m in sitemap_pages.values() if m]
         if not sitemap_lastmods:
             result["sitemap_lastmod_state"] = (
                 "sitemap declares no <lastmod> dates, so a crawler cannot tell "
