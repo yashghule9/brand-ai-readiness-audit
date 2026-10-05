@@ -34,10 +34,14 @@ dependencies = [
 
 [project.optional-dependencies]
 render = ["playwright>=1.40"]
+# The web app (braiaudit.server). Optional so the skill marketplace itself
+# keeps its four-dependency footprint.
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 dev = [
   "pytest>=8.0",
   "responses>=0.25",
   "ruff>=0.5",
+  "httpx>=0.27",
 ]
 
 [project.urls]

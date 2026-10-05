@@ -23,3 +23,6 @@ Thumbs.db
 
 # Audit run output
 *.report.json
+
+# Web app job store
+*.db
