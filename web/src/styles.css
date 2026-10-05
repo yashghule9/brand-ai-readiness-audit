@@ -399,3 +399,307 @@ p {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------------- report */
+
+.muted {
+  color: var(--ink-faint);
+}
+
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+}
+
+.report-head h1 {
+  font-size: var(--step-3);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.report-meta {
+  margin-top: 0.35rem;
+  color: var(--ink-faint);
+}
+
+.score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.score-value {
+  font-size: var(--step-4);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.score-label {
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+  max-width: 22ch;
+}
+
+/* No evidence: the number is replaced, and the hatching says why. */
+.score-absent .score-value {
+  font-size: var(--step-2);
+  padding: 0.35rem 0.75rem;
+  background: var(--hatch);
+  border-radius: var(--radius);
+}
+
+.headline {
+  margin-top: 1.25rem;
+  font-size: var(--step-1);
+  color: var(--ink-soft);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 2.5rem;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+}
+
+.tab {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.panel {
+  padding-top: 2rem;
+}
+
+/* The mode strip: one cell per check that could run on this axis. */
+.axes {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.axis {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) 5rem minmax(0, 1fr);
+  grid-template-areas:
+    "text score strip"
+    "text score caption";
+  column-gap: 1.5rem;
+  row-gap: 0.35rem;
+  align-items: center;
+}
+
+.axis-text {
+  grid-area: text;
+}
+
+.axis-text h2 {
+  font-size: var(--step-1);
+  font-weight: 600;
+}
+
+.axis-text p {
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+
+.axis-score {
+  grid-area: score;
+  font-size: var(--step-2);
+  font-weight: 600;
+  text-align: right;
+}
+
+.strip {
+  grid-area: strip;
+  display: flex;
+  gap: 3px;
+}
+
+.cell {
+  flex: 1;
+  max-width: 2.5rem;
+  height: 1.6rem;
+  border-radius: 2px;
+  background: var(--accent-soft);
+}
+
+.cell-critical { background: var(--critical); }
+.cell-high { background: var(--high); }
+.cell-medium { background: var(--medium); }
+.cell-low { background: var(--low); }
+
+.strip-absent .cell {
+  background: var(--hatch);
+  outline: 1px solid var(--rule);
+  outline-offset: -1px;
+}
+
+.axis-caption {
+  grid-area: caption;
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+
+@media (max-width: 720px) {
+  .axis {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "text score"
+      "strip strip"
+      "caption caption";
+  }
+  .axis-score {
+    font-size: var(--step-1);
+  }
+}
+
+.limitations {
+  margin-top: 3rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border-left: 6px solid transparent;
+  border-image: var(--hatch) 1;
+}
+
+.limitations h2 {
+  font-size: var(--step-1);
+}
+
+.limitation {
+  margin-top: 1rem;
+}
+
+.limitation h3 {
+  font-size: var(--step-0);
+  font-weight: 600;
+}
+
+/* Findings and fixes share one row shape: a severity stripe on the left. */
+.findings,
+.actions ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.finding {
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border-left: 4px solid var(--low);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.sev-critical { border-left-color: var(--critical); }
+.sev-high { border-left-color: var(--high); }
+.sev-medium { border-left-color: var(--medium); }
+
+.finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.finding-head h3 {
+  font-size: var(--step-1);
+  font-weight: 600;
+}
+
+.severity {
+  font-size: var(--step--1);
+  font-weight: 650;
+}
+
+.sev-critical .severity { color: var(--critical); }
+.sev-high .severity { color: var(--high); }
+.sev-medium .severity { color: var(--medium); }
+.sev-low .severity { color: var(--low); }
+
+.evidence {
+  margin-top: 0.4rem;
+  color: var(--ink-soft);
+}
+
+.finding-tags {
+  margin-top: 0.4rem;
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+
+.finding details {
+  margin-top: 0.5rem;
+  font-size: var(--step--1);
+}
+
+.finding summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.urls {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.urls a {
+  word-break: break-all;
+}
+
+.actions + .actions {
+  margin-top: 3rem;
+}
+
+.actions h2 {
+  font-size: var(--step-1);
+  margin-bottom: 0.25rem;
+}
+
+.actions > p {
+  margin-bottom: 1rem;
+}
+
+.actions ol {
+  margin-top: 1rem;
+}
+
+.advice {
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.advice p + p {
+  margin-top: 0.4rem;
+}
+
+.empty {
+  color: var(--ink-soft);
+}
+
+.report-foot {
+  margin-top: 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
