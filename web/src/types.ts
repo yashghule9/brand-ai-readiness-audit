@@ -109,3 +109,36 @@ export type AuditEvent =
   | PageEvent
   | { type: "done" }
   | { type: "failed"; error: string | null };
+
+// Phase 3: how an assistant represents the brand, compared against the facts
+// the audit verified. Observational only — never part of the score.
+export interface VerifiedFact {
+  value: string | string[] | null;
+  status: "verified" | "heuristic" | "unavailable";
+  source: string;
+}
+
+export interface RepresentationQuestion {
+  id: string;
+  question: string;
+  answer: string | null;
+  status: "ok" | "not_evaluated" | "error";
+  provider: string;
+  model: string | null;
+  error_category: string | null;
+  observation: { status: string; signals: string[]; basis: string; notes: string };
+}
+
+export interface Representation {
+  site: string;
+  verified_facts: Record<string, VerifiedFact>;
+  questions: RepresentationQuestion[];
+  summary: {
+    questions_asked: number;
+    questions_evaluated: number;
+    not_evaluated: number;
+    consistent: number;
+    discrepancies: number;
+  };
+  disclaimer: string;
+}

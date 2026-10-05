@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
-import { getAudit, watchAudit } from "../api";
+import { getAudit, getRepresentation, watchAudit } from "../api";
 import Report from "../Report";
 import type { Job, PageEvent } from "../types";
 
@@ -21,6 +21,7 @@ export default function AuditPage() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [pages, setPages] = useState<PageEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const loadRepresentation = useCallback(() => getRepresentation(id), [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +71,7 @@ export default function AuditPage() {
     };
   }, [id]);
 
-  if (phase === "done" && job?.report) return <Report report={job.report} />;
+  if (phase === "done" && job?.report) return <Report report={job.report} loadRepresentation={loadRepresentation} />;
 
   if (phase === "failed") {
     return (

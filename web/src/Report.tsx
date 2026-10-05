@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { scoreText } from "./format";
-import type { Axis, AxisScore, Finding, Report as ReportData, Severity } from "./types";
+import Representation from "./Representation";
+import type {
+  Axis,
+  AxisScore,
+  Finding,
+  Report as ReportData,
+  Representation as RepresentationData,
+  Severity,
+} from "./types";
 
 const AXES: { key: Axis; label: string; question: string }[] = [
   { key: "visibility", label: "Visibility", question: "Can assistants reach and read the site?" },
@@ -17,9 +25,15 @@ const SEVERITY_LABEL: Record<Severity, string> = {
   low: "Low",
 };
 
-type Tab = "overview" | "findings" | "actions";
+type Tab = "overview" | "findings" | "representation" | "actions";
 
-export default function Report({ report }: { report: ReportData }) {
+export default function Report({
+  report,
+  loadRepresentation,
+}: {
+  report: ReportData;
+  loadRepresentation: () => Promise<RepresentationData>;
+}) {
   const [tab, setTab] = useState<Tab>("overview");
   const { summary, meta } = report;
   const assessed = summary.readiness_score !== null;
@@ -27,6 +41,7 @@ export default function Report({ report }: { report: ReportData }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "findings", label: `Findings (${report.findings.length})` },
+    { id: "representation", label: "What assistants say" },
     { id: "actions", label: "What to do" },
   ];
 
@@ -70,6 +85,7 @@ export default function Report({ report }: { report: ReportData }) {
       <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="panel">
         {tab === "overview" && <Overview report={report} />}
         {tab === "findings" && <Findings report={report} />}
+        {tab === "representation" && <Representation load={loadRepresentation} />}
         {tab === "actions" && <Actions report={report} />}
       </section>
 

@@ -1,4 +1,4 @@
-import type { AuditEvent, Job, Report } from "./types";
+import type { AuditEvent, Job, Report, Representation } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -34,3 +34,9 @@ export function watchAudit(id: string, onEvent: (event: AuditEvent) => void): ()
   };
   return () => source.close();
 }
+
+export const getRepresentation = (id: string) =>
+  fetch(`/api/audits/${id}/representation`).then((r) => json<Representation>(r));
+
+export const getShowcaseRepresentation = (slug: string) =>
+  fetch(`/showcase/${slug}.representation.json`).then((r) => json<Representation>(r));
