@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
 import responses
 
 from braiaudit.fetch import observe
@@ -651,3 +654,107 @@ def test_tracking_params_stripped_meaningful_params_preserved():
     assert canonical_crawl_url("https://example.com/search?q=things+to+buy&gclid=xyz") == (
         "https://example.com/search?q=things+to+buy"
     )
+
+
+# ---------------------------------------------------------------------------
+# SSRF: the crawler must not fetch non-public addresses.
+#
+# Harmless while the operator chose the URL and read their own output. Behind
+# a public form that inverts — an attacker chooses the URL and the report
+# hands back the response, since the page title becomes a brand-name
+# candidate and the body feeds the evidence strings.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1:8731/",          # loopback
+        "https://169.254.169.254/",        # cloud instance metadata
+        "http://10.0.0.5/",                # RFC1918
+        "http://192.168.1.1/",             # RFC1918
+        "http://100.64.0.1/",              # CGNAT
+        "http://[::1]/",                   # IPv6 loopback
+        "http://0.0.0.0/",                 # unspecified
+        "http://[::ffff:127.0.0.1]/",      # IPv4-mapped loopback
+    ],
+)
+def test_non_public_addresses_are_refused(url):
+    from braiaudit.fetch import BlockedAddressError, _assert_public_address
+
+    with pytest.raises(BlockedAddressError):
+        _assert_public_address(url)
+
+
+@pytest.mark.parametrize("url", ["file:///etc/passwd", "gopher://x/", "ftp://x/"])
+def test_non_http_schemes_are_refused(url):
+    from braiaudit.fetch import BlockedAddressError, _assert_public_address
+
+    with pytest.raises(BlockedAddressError):
+        _assert_public_address(url)
+
+
+def test_unresolvable_host_is_allowed_through():
+    """Not a hole: if the name does not resolve, the connection cannot
+    succeed either, so there is nothing to defend against. Letting it pass
+    keeps the existing connection_failed observation — and keeps the mocked,
+    network-free tests in this suite working."""
+    from braiaudit.fetch import _assert_public_address
+
+    _assert_public_address("https://no-such-host.invalid/")
+
+
+def test_observe_refuses_a_live_loopback_service_and_leaks_nothing():
+    """The end-to-end case, against a real socket rather than a mock.
+
+    Before the guard this returned HTTP 200, put the internal page's title in
+    brand_name_candidates and its body in raw_html — both of which reach the
+    final report. It must now come back as an unreachable host with no
+    content retained.
+    """
+    import http.server
+    import socketserver
+    import threading
+
+    from braiaudit.fetch import observe
+
+    body = (
+        b"<html><head><title>internal-admin-db PROD</title></head>"
+        b"<body>DB_PASSWORD=hunter2-prod</body></html>"
+    )
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    with socketserver.TCPServer(("127.0.0.1", 0), Handler) as srv:
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            result = observe(f"http://127.0.0.1:{port}/", user_agent="TestBot/1.0")
+        finally:
+            srv.shutdown()
+
+    assert result["http_status"] is None
+    assert "connection_failed" in result["signals"]
+    assert result.get("raw_html") is None
+    assert not result.get("brand_name_candidates")
+    # And nothing from the internal page survived anywhere in the observation.
+    assert "hunter2" not in json.dumps(result)
+    assert "internal-admin-db" not in json.dumps(result)
+
+
+def test_public_address_is_allowed():
+    """The guard must not simply refuse everything — otherwise the tests above
+    would pass against a crawler that fetches nothing at all."""
+    from braiaudit.fetch import _assert_public_address
+
+    _assert_public_address("https://93.184.216.34/")
+    _assert_public_address("http://[2606:2800:220:1:248:1893:25c8:1946]/")

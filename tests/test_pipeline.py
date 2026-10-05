@@ -208,3 +208,152 @@ def test_max_pages_caps_the_frontier():
 
     crawled = {u for f in report["findings"] for u in f["affected_urls"]}
     assert len(crawled) == 3
+
+
+# ---------------------------------------------------------------------------
+# Foundations the web layer needs: a progress hook, and an explicit opt-in for
+# auditing a local target you own.
+# ---------------------------------------------------------------------------
+
+
+@__import__("responses").activate
+def test_on_page_reports_every_crawled_url_exactly_once():
+    """A median audit is ~26s and the long ones run minutes, so the UI needs
+    the crawl as it happens. Every page must be reported once — including the
+    ones that end early, which are precisely the interesting ones to watch."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    page = (
+        "<html><head><title>Example Tools</title></head><body><main>"
+        "<h1>Example Tools</h1><p>Example Tools is an accounting suite for "
+        "small businesses based in Bengaluru, India, shipping since 2014 and "
+        "used by forty thousand businesses today.</p>"
+        '<a href="https://example.com/pricing">Pricing</a>'
+        '<a href="https://example.com/gone">Gone</a></main></body></html>'
+    )
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+    responses.add(responses.GET, "https://example.com/", body=page, status=200,
+                  content_type="text/html")
+    responses.add(responses.GET, "https://example.com/pricing", body=page, status=200,
+                  content_type="text/html")
+    responses.add(responses.GET, "https://example.com/gone",
+                  body="<html><body>Attention Required! | Cloudflare</body></html>",
+                  status=403, content_type="text/html")
+
+    events: list[dict] = []
+    report = run_audit(
+        "example.com",
+        options=AuditOptions(max_pages=5, max_render_pages=0, corroborate=False),
+        on_page=events.append,
+    )
+
+    urls = [e["url"] for e in events]
+    assert len(urls) == len(set(urls)), f"a page was reported twice: {urls}"
+    # One event per URL the crawl actually touched.
+    assert len(events) == report["meta"]["crawl"]["pages_crawled"] + len(
+        report["meta"]["crawl"]["pages_unreachable"]
+    )
+
+    by_url = {e["url"]: e for e in events}
+    assert by_url["https://example.com/"]["outcome"] == "analysed"
+    # A challenge page is reached but never read as content.
+    assert by_url["https://example.com/gone"]["outcome"] == "blocked"
+
+    last = events[-1]
+    for key in ("depth", "pages_crawled", "pages_analysed", "pages_rendered",
+                "queued", "skills_engaged"):
+        assert key in last, f"progress snapshot missing {key}"
+    # The snapshot must agree with the finished report, not drift from it.
+    assert last["pages_analysed"] <= last["pages_crawled"]
+    assert last["pages_crawled"] == report["meta"]["crawl"]["pages_crawled"]
+
+
+@__import__("responses").activate
+def test_audit_runs_unchanged_without_a_progress_hook():
+    """on_page is advisory: omitting it must change nothing about the result."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    def stub():
+        responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+        responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+        responses.add(
+            responses.GET, "https://example.com/",
+            body="<html><head><title>T</title></head><body><main><h1>T</h1>"
+                 "<p>" + "Example sells accounting software. " * 20 + "</p>"
+                 "</main></body></html>",
+            status=200, content_type="text/html")
+
+    stub()
+    opts = dict(max_pages=1, max_render_pages=0, corroborate=False)
+    quiet = run_audit("example.com", options=AuditOptions(**opts))
+    noisy = run_audit("example.com", options=AuditOptions(**opts), on_page=lambda e: None)
+
+    assert quiet["summary"]["readiness_score"] == noisy["summary"]["readiness_score"]
+    assert [f["title"] for f in quiet["findings"]] == [
+        f["title"] for f in noisy["findings"]
+    ]
+
+
+def test_allow_private_hosts_is_opt_in_and_off_by_default():
+    """The SSRF guard must stay closed unless the caller deliberately opens
+    it — a hosted form must never be able to reach a private address, and the
+    default is what a forgetful caller gets."""
+    import requests
+
+    from braiaudit.fetch import _PublicOnlyAdapter, harden_session
+    from braiaudit.pipeline import AuditOptions
+
+    assert AuditOptions().allow_private_hosts is False
+
+    guarded = harden_session(requests.Session())
+    assert isinstance(guarded.get_adapter("https://example.com/"), _PublicOnlyAdapter)
+
+    opened = harden_session(requests.Session(), allow_private=True)
+    assert not isinstance(opened.get_adapter("https://example.com/"), _PublicOnlyAdapter)
+
+
+def test_allow_private_hosts_reaches_a_local_target():
+    """The flag has to actually work, or 'audit your own dev server' is a
+    promise the CLI cannot keep."""
+    import http.server
+    import socketserver
+    import threading
+
+    from braiaudit.fetch import observe
+
+    body = (
+        b"<html><head><title>My Dev Site</title></head><body><main><h1>My Dev Site</h1>"
+        b"<p>A local development server serving real content for an audit.</p>"
+        b"</main></body></html>"
+    )
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    with socketserver.TCPServer(("127.0.0.1", 0), Handler) as srv:
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            blocked = observe(f"http://127.0.0.1:{port}/", user_agent="TestBot/1.0")
+            allowed = observe(
+                f"http://127.0.0.1:{port}/", user_agent="TestBot/1.0", allow_private=True
+            )
+        finally:
+            srv.shutdown()
+
+    assert blocked["http_status"] is None
+    assert allowed["http_status"] == 200
+    assert "My Dev Site" in (allowed.get("raw_html") or "")

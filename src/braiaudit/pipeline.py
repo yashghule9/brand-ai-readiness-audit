@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -69,6 +70,12 @@ DEFAULT_TARGET_QUERIES = [
 @dataclass
 class AuditOptions:
     respect_robots: bool = True
+    # Off by default: the crawler refuses loopback, private and link-local
+    # addresses so a hosted form cannot be pointed at internal services (see
+    # fetch._assert_public_address). Turn it on only for a local target you
+    # own — auditing your own dev server on localhost:3000 — never for a
+    # host someone else supplied.
+    allow_private_hosts: bool = False
     max_pages: int = 15
     # Rendering costs ~20-25s per page against a real site, and dominates
     # total runtime; static pages cost 1-3s. Three rendered samples is
@@ -101,12 +108,22 @@ def run_audit(
     site: str,
     seed_urls: list[str] | None = None,
     options: AuditOptions | None = None,
+    on_page: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run the full six-step pipeline and return the final audit report.
 
     This is the direct code path behind `braiaudit audit <site>` and the
     same sequence the entrypoint skill instructs Claude to orchestrate when it
     drives the skills itself via tool use instead of this CLI.
+
+    `on_page` is called once per crawled URL with a progress snapshot, for a
+    caller that wants to show the crawl as it happens rather than after it
+    finishes — a median audit takes ~26s and the long ones minutes, so a
+    blocking call with no output is a poor thing to put behind a UI. It is
+    advisory only: the audit's result does not depend on it, and an exception
+    raised inside it is left to propagate rather than being swallowed, since
+    a progress sink that is silently failing is worse than one that stops the
+    run and says so.
     """
     options = options or AuditOptions()
     if not options.target_queries:
@@ -194,6 +211,36 @@ def run_audit(
     # ends the attempt instead of starting another.
     www_fallback_tried = False
 
+    def emit_progress(url: str, depth: int) -> None:
+        """One progress snapshot per crawled URL.
+
+        The outcome is derived from the state the loop already maintains
+        rather than passed in by each branch, so the three exit paths below
+        cannot disagree with the report about what happened to a page.
+        """
+        if on_page is None:
+            return
+        on_page(
+            {
+                "url": url,
+                "depth": depth,
+                "outcome": (
+                    "unreachable"
+                    if url in pages_unreachable
+                    else "analysed"
+                    if url in analysed_urls
+                    else "blocked"
+                ),
+                "pages_crawled": len(
+                    {u for u in findings_by_url if u not in pages_unreachable}
+                ),
+                "pages_analysed": len(analysed_urls),
+                "pages_rendered": pages_rendered,
+                "queued": len(frontier),
+                "skills_engaged": sorted(engaged),
+            }
+        )
+
     started_at = time.monotonic()
     stopped_early = ""
 
@@ -211,7 +258,11 @@ def run_audit(
 
         # --- 1. Observe ------------------------------------------------
         observed = fetch.observe(
-            url, user_agent=options.user_agent, session=session, origin_cache=origin_cache
+            url,
+            user_agent=options.user_agent,
+            session=session,
+            origin_cache=origin_cache,
+            allow_private=options.allow_private_hosts,
         )
         engaged.add("website-observer")
         page_findings.extend(_diagnose(url, observed))
@@ -254,9 +305,11 @@ def run_audit(
             if "connection_failed" in observed["signals"]:
                 connection_failures += 1
             findings_by_url[url] = page_findings
+            emit_progress(url, depth)
             continue
         if _HALT_SIGNALS & set(observed["signals"]):
             findings_by_url[url] = page_findings
+            emit_progress(url, depth)
             continue
 
         # Past both guards: this page was read as the site's own content, so
@@ -364,6 +417,7 @@ def run_audit(
             page_findings.extend(_diagnose(url, discovered))
 
         findings_by_url[url] = page_findings
+        emit_progress(url, depth)
 
     # --- Cross-page pass: duplicate content without a disambiguating
     # canonical tag (CANONICAL_URL_AMBIGUITY) can only be detected once
@@ -544,7 +598,11 @@ def _observe_and_clean_text(
     over static HTML — discovery never spends render budget on candidates,
     only the seed pages the orchestrator already chose to render."""
     observed = fetch.observe(
-        url, user_agent=options.user_agent, session=session, origin_cache=origin_cache
+        url,
+        user_agent=options.user_agent,
+        session=session,
+        origin_cache=origin_cache,
+        allow_private=options.allow_private_hosts,
     )
     if observed.get("http_status") != 200 or not observed.get("raw_html"):
         return None

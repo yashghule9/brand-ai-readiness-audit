@@ -8,9 +8,11 @@ mirrors.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import re
+import socket
 import time
 import urllib.parse
 import urllib.robotparser
@@ -141,6 +143,99 @@ class RobotsDecision:
     ai_agent_access: dict[str, bool] = field(default_factory=dict)
     # {agent: allowed?} for the classic-search contrast set.
     classic_agent_access: dict[str, bool] = field(default_factory=dict)
+
+
+class BlockedAddressError(requests.RequestException):
+    """The host resolved to an address this crawler will not fetch.
+
+    Subclasses `RequestException` deliberately: every caller here already
+    treats an unreachable host as a `connection_failed` observation, so a
+    refused address degrades along that same honest path instead of needing
+    a second error route. Nothing is analysed, and the run reports what it
+    could not obtain.
+    """
+
+
+def _assert_public_address(url: str) -> None:
+    """Refuse anything that is not a public HTTP(S) address.
+
+    Only matters once someone other than the operator chooses the target. As
+    a CLI this crawler fetched whatever it was pointed at, which was fine
+    because the person picking the URL was the person reading the output. Put
+    a form in front of it and that inverts: an attacker picks the URL and the
+    report hands back the response body — the page title lands in
+    `brand_name_candidates` and the body in the evidence strings, so the
+    report format is itself the exfiltration channel.
+
+    Checked on the resolved address, not the hostname, because a name is not
+    evidence: an attacker can point a perfectly ordinary domain at 127.0.0.1,
+    and a hostname blocklist never sees it. `is_global` is one attribute that
+    already excludes loopback, private, link-local (so cloud metadata at
+    169.254.169.254), CGNAT, unspecified and IPv4-mapped IPv6 forms of all of
+    them — shorter and harder to get wrong than a hand-rolled range list.
+
+    An unresolvable host is allowed through: the connection cannot succeed
+    either, so there is nothing to defend against, and the existing
+    `connection_failed` path stays intact.
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise BlockedAddressError(f"refusing non-HTTP(S) URL scheme {parsed.scheme!r}")
+    host = parsed.hostname
+    if not host:
+        raise BlockedAddressError(f"refusing a URL with no host: {url!r}")
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0])
+        if not address.is_global:
+            raise BlockedAddressError(
+                f"refusing {host!r}: resolves to the non-public address {address}"
+            )
+
+
+class _PublicOnlyAdapter(requests.adapters.HTTPAdapter):
+    """Applies the address guard to every request, redirect hops included.
+
+    A transport adapter rather than a check at each call site: `requests`
+    re-enters `send()` once per redirect, so this covers a 302 into private
+    space — which four separate call-site checks would not — and robots.txt,
+    sitemap.xml, the page fetch and the 429 retry all inherit it for free.
+    """
+
+    def send(self, request, **kwargs):  # type: ignore[override]
+        _assert_public_address(request.url)
+        return super().send(request, **kwargs)
+
+
+def harden_session(
+    session: requests.Session, allow_private: bool = False
+) -> requests.Session:
+    """Mount the public-address guard on `session`. Idempotent.
+
+    `allow_private=True` skips the guard, for auditing a local target you own
+    (a dev server on localhost). It still marks the session, so a later
+    defaulted call cannot silently arm a session the caller chose to leave
+    open. Never set it from a host someone else supplied.
+
+    ponytail: the address is re-resolved by urllib3 when it connects, so a
+    DNS record that changes between check and connect (rebinding) is not
+    covered. Closing that needs the checked IP pinned into the connection —
+    a custom resolver or connecting by IP with an explicit Host header. Left
+    out deliberately: it is a much larger change, and rebinding is a far
+    narrower exposure than the plain private-address fetch this does stop.
+    """
+    if getattr(session, "_braiaudit_hardened", False):
+        return session
+    if not allow_private:
+        adapter = _PublicOnlyAdapter()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+    session._braiaudit_hardened = True  # type: ignore[attr-defined]
+    return session
 
 
 def normalize_url(target: str) -> str:
@@ -647,6 +742,7 @@ def observe(
     timeout_ms: int = 10000,
     session: requests.Session | None = None,
     origin_cache: dict[str, Any] | None = None,
+    allow_private: bool = False,
 ) -> dict[str, Any]:
     """Run the full website-observer pass for one URL. Returns a dict
     validated against schemas/website-observer.output.schema.json.
@@ -657,7 +753,10 @@ def observe(
     which on a slow host is most of the crawl's wall-clock time.
     """
     url = normalize_url(url)
-    session = session or requests.Session()
+    # Armed here, on the one session every fetch in this pass shares, so the
+    # guard covers robots.txt, sitemap.xml, the page GET and the 429 retry
+    # without a check at each of those call sites.
+    session = harden_session(session or requests.Session(), allow_private=allow_private)
     timeout = timeout_ms / 1000
 
     result: dict[str, Any] = {
