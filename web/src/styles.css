@@ -1,17 +1,19 @@
-/* Tokens. Severity colours are semantic and kept apart from the one accent. */
+/* Tokens. Severity colours are semantic and kept apart from the one accent.
+   Every text colour clears WCAG AA (4.5:1) on both --paper and --surface,
+   in both themes; values were solved for that, not eyeballed. */
 :root {
   --paper: #f2f4f6;
   --surface: #ffffff;
   --ink: #1b2430;
   --ink-soft: #4f5b6a;
-  --ink-faint: #7a8592;
+  --ink-faint: #656f7b;
   --rule: #d9dee4;
   --accent: #0b6e69;
   --accent-soft: #dcedeb;
   --critical: #b3261e;
-  --high: #b25e0a;
+  --high: #a85909;
   --medium: #3d5fa6;
-  --low: #6d7886;
+  --low: #656f7c;
   --ok: #2e7d4f;
   /* Absence of evidence. Used wherever the audit could not look. */
   --hatch: repeating-linear-gradient(-45deg, var(--rule) 0 2px, transparent 2px 6px);
@@ -34,7 +36,7 @@
     --surface: #1a2129;
     --ink: #e6eaee;
     --ink-soft: #a9b3be;
-    --ink-faint: #76818d;
+    --ink-faint: #808a95;
     --rule: #2c353f;
     --accent: #4cc2b9;
     --accent-soft: #163330;

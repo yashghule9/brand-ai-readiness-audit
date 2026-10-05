@@ -75,7 +75,20 @@ export default function Report({
             aria-selected={tab === id}
             aria-controls={`panel-${id}`}
             className="tab"
+            // Roving tabindex: one Tab stop for the whole list, arrows move
+            // between tabs, as the ARIA tabs pattern promises a screen reader.
+            tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
+            onKeyDown={(event) => {
+              const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+              const edge = { Home: 0, End: tabs.length - 1 }[event.key];
+              if (step === undefined && edge === undefined) return;
+              event.preventDefault();
+              const current = tabs.findIndex((t) => t.id === id);
+              const next = tabs[edge ?? (current + step! + tabs.length) % tabs.length]!;
+              setTab(next.id);
+              document.getElementById(`tab-${next.id}`)?.focus();
+            }}
           >
             {label}
           </button>
