@@ -203,7 +203,7 @@ p {
 
 .sample-list a {
   display: grid;
-  grid-template-columns: minmax(9rem, 14rem) 5.5rem 1fr;
+  grid-template-columns: minmax(9rem, 14rem) 8.5rem 1fr;
   gap: 1rem;
   align-items: baseline;
   padding: 0.9rem 0.25rem;
@@ -449,8 +449,9 @@ p {
 .score-absent .score-value {
   font-size: var(--step-2);
   padding: 0.35rem 0.75rem;
-  background: var(--hatch);
+  border: 4px solid transparent;
   border-radius: var(--radius);
+  background: linear-gradient(var(--paper), var(--paper)) padding-box, var(--hatch) border-box;
 }
 
 .headline {
@@ -790,8 +791,25 @@ p {
 .unasked {
   font-size: var(--step--1);
   color: var(--ink-soft);
-  padding: 0.2rem 0.6rem;
-  background: var(--hatch);
+  padding: 0.15rem 0.6rem;
+  border: 3px solid transparent;
   border-radius: var(--radius);
+  background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--hatch) border-box;
   white-space: nowrap;
+}
+
+.disclaimer {
+  margin-top: 2.5rem;
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+
+@media (max-width: 640px) {
+  .masthead-note {
+    display: none;
+  }
+  .score {
+    align-items: flex-start;
+    text-align: left;
+  }
 }

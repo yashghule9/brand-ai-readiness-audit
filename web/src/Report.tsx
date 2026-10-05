@@ -140,7 +140,7 @@ function AxisRow({
         <h2>{label}</h2>
         <p>{question}</p>
       </div>
-      <div className="axis-score">{scoreText(score.score)}</div>
+      <div className="axis-score">{assessed ? score.score : null}</div>
       <div
         className={`strip${assessed ? "" : " strip-absent"}`}
         role="img"
@@ -160,7 +160,7 @@ function AxisRow({
           ? fired.length === 0
             ? `All ${possible} checks passed`
             : `${fired.length} of ${possible} checks found a problem`
-          : "Not assessed"}
+          : "Not assessed: no page could be read"}
       </p>
     </div>
   );

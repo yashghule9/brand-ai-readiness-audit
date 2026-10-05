@@ -74,7 +74,7 @@ export default function Representation({ load }: { load: () => Promise<Represent
         </ol>
       </section>
 
-      <p className="report-foot">{data.disclaimer}</p>
+      <p className="disclaimer">{data.disclaimer}</p>
     </div>
   );
 }
