@@ -26,3 +26,6 @@ Thumbs.db
 
 # Web app job store
 *.db
+
+# Frontend
+node_modules/
