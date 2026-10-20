@@ -1,9 +1,20 @@
 import type { AuditEvent, Job, Report, Representation } from "./types";
 
+/** A request the server answered with an error, carrying its status so
+ *  callers can tell bad input (422) from a limit (429, 503). */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.detail ?? `Request failed (${res.status})`);
+    throw new ApiError(body?.detail ?? `Request failed (${res.status})`, res.status);
   }
   return res.json() as Promise<T>;
 }

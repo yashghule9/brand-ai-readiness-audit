@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import { getShowcase, startAudit } from "../api";
+import { ApiError, getShowcase, startAudit } from "../api";
 import { scoreText } from "../format";
 import { SHOWCASE } from "../showcase";
 import type { Report } from "../types";
@@ -18,12 +18,15 @@ export default function Home() {
     try {
       navigate(`/audit/${await startAudit(domain)}`);
     } catch (err) {
-      // A network-level failure means the API isn't up; anything else is
-      // the server rejecting the input.
+      // Three different failures, three different instructions: the API
+      // isn't up, the input isn't a domain, or a limit was hit (the server's
+      // own message says how long to wait).
       setError(
-        err instanceof TypeError
-          ? "The audit server isn't reachable. Start it with: uvicorn braiaudit.server:app"
-          : "That doesn't look like a domain. Try one like example.com.",
+        !(err instanceof ApiError)
+          ? "The audit server isn't reachable right now. Try again in a moment."
+          : err.status === 422
+            ? "That doesn't look like a domain. Try one like example.com."
+            : err.message,
       );
       setBusy(false);
     }

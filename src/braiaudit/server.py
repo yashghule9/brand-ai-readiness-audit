@@ -15,10 +15,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import re
 import sqlite3
+import threading
+import time
 import uuid
+from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, contextmanager
@@ -26,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -155,9 +159,55 @@ class AuditRequest(BaseModel):
     domain: str
 
 
+# --- Abuse limits -------------------------------------------------------------
+# Every accepted request starts a multi-page crawl and possibly a headless
+# browser, on the server's IP. Unlimited, one script could freeze the single
+# worker and turn this server into a crawler aimed at other people's sites.
+# Both limits are env-tunable: generous by default for local use, tightened
+# in docker-compose.prod.yml for a public host.
+_WINDOW_S = 3600
+# ponytail: per-process memory, reset on restart. Fine for one server; a
+# shared store (the jobs table, or Redis) if this ever runs replicated.
+_recent: dict[str, deque[float]] = defaultdict(deque)
+_recent_lock = threading.Lock()
+
+
+def _check_limits(client: str) -> None:
+    per_hour = int(os.environ.get("BRAIAUDIT_AUDITS_PER_HOUR", "30"))
+    max_queue = int(os.environ.get("BRAIAUDIT_MAX_QUEUE", "20"))
+
+    with _db() as db:
+        waiting = db.execute(
+            "SELECT COUNT(*) FROM jobs WHERE status IN ('queued', 'running')"
+        ).fetchone()[0]
+    if waiting >= max_queue:
+        raise HTTPException(
+            status_code=503,
+            detail="The audit queue is full right now. Try again in a few minutes.",
+            headers={"Retry-After": "120"},
+        )
+
+    now = time.monotonic()
+    with _recent_lock:
+        stamps = _recent[client]
+        while stamps and now - stamps[0] > _WINDOW_S:
+            stamps.popleft()
+        if len(stamps) >= per_hour:
+            wait = math.ceil((_WINDOW_S - (now - stamps[0])) / 60)
+            raise HTTPException(
+                status_code=429,
+                detail=f"You've run {per_hour} audits this hour. Try again in {wait} minutes.",
+                headers={"Retry-After": str(wait * 60)},
+            )
+        stamps.append(now)
+
+
 @app.post("/api/audits", status_code=202)
-def create_audit(request: AuditRequest) -> dict[str, str]:
+def create_audit(request: AuditRequest, http: Request) -> dict[str, str]:
     domain = _normalise_domain(request.domain)
+    # Behind the production proxy this is the visitor's address: uvicorn runs
+    # with --proxy-headers there, and only the proxy can reach the app.
+    _check_limits(http.client.host if http.client else "unknown")
     job_id = uuid.uuid4().hex[:12]
     with _db() as db:
         db.execute(

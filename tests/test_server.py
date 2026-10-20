@@ -166,3 +166,40 @@ def test_spa_route_cannot_read_outside_dist(tmp_path, monkeypatch):
     finally:
         monkeypatch.delenv("BRAIAUDIT_WEB_DIST")
         importlib.reload(server)
+
+
+def test_per_client_hourly_limit(client, monkeypatch):
+    """Each accepted audit costs a crawl on the server's IP; one client must
+    not be able to queue them without bound."""
+    monkeypatch.setattr(server, "run_audit", _fake_run_audit)
+    monkeypatch.setenv("BRAIAUDIT_AUDITS_PER_HOUR", "2")
+    server._recent.clear()
+
+    codes = [client.post("/api/audits", json={"domain": "example.com"}).status_code
+             for _ in range(3)]
+    assert codes == [202, 202, 429]
+
+    limited = client.post("/api/audits", json={"domain": "example.com"})
+    assert "audits this hour" in limited.json()["detail"]
+    assert int(limited.headers["retry-after"]) > 0
+
+
+def test_invalid_input_does_not_spend_the_quota(client, monkeypatch):
+    monkeypatch.setattr(server, "run_audit", _fake_run_audit)
+    monkeypatch.setenv("BRAIAUDIT_AUDITS_PER_HOUR", "1")
+    server._recent.clear()
+
+    assert client.post("/api/audits", json={"domain": "not a domain"}).status_code == 422
+    assert client.post("/api/audits", json={"domain": "example.com"}).status_code == 202
+
+
+def test_full_queue_refuses_new_audits(client, monkeypatch):
+    monkeypatch.setenv("BRAIAUDIT_MAX_QUEUE", "1")
+    server._recent.clear()
+    with sqlite3.connect(server._db_path()) as db:
+        db.execute("INSERT INTO jobs (id, domain, status, created_at) "
+                   "VALUES ('busy', 'example.com', 'running', 'now')")
+
+    r = client.post("/api/audits", json={"domain": "example.com"})
+    assert r.status_code == 503
+    assert "queue is full" in r.json()["detail"]
