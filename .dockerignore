@@ -1,0 +1,15 @@
+.git
+.github
+.claude
+.agents
+eval
+build
+dist
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+*.db
+web/node_modules
+web/dist
+submisiion-rules.txt

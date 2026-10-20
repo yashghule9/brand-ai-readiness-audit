@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - audits:/data            # audit history survives restarts
+    environment:
+      # 0 turns headless rendering off: faster, lighter audits, with
+      # render-dependent checks reported as a coverage gap instead.
+      BRAIAUDIT_MAX_RENDER_PAGES: "3"
+    # Chromium uses /dev/shm heavily; Docker's 64 MB default crashes it.
+    shm_size: "1gb"
+
+volumes:
+  audits:

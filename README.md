@@ -93,7 +93,9 @@ cd web && npm install && npm run dev          # UI at localhost:5173, proxies /a
 ```
 
 Or `npm run build` once in `web/` and the API serves the UI itself at
-`localhost:8000`. `BRAIAUDIT_MAX_RENDER_PAGES` sets the render budget
+`localhost:8000`. Or run everything in one container, Chromium included:
+`docker compose up --build`, then open `localhost:8000` (audit history persists
+in a named volume). `BRAIAUDIT_MAX_RENDER_PAGES` sets the render budget
 (default 3; `0` turns rendering off) and `BRAIAUDIT_DB` the SQLite job store.
 
 **Why the crawler refuses private addresses.** As a CLI, whoever picks the
