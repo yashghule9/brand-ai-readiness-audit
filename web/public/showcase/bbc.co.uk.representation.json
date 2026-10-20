@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "site": "bbc.co.uk",
+  "mode": "blind",
+  "generated_at": "2026-10-20T17:58:45Z",
+  "verified_facts": {
+    "official_domain": {
+      "value": "bbc.co.uk",
+      "status": "verified",
+      "source": "phase2_report.site_info.domain"
+    },
+    "brand_name": {
+      "value": "BBC",
+      "status": "heuristic",
+      "source": "phase2_report.site_info.declared_brand_name \u2014 Organization.name or og:site_name, self-declared by the site and not validated as a brand name or tied to the audited domain"
+    },
+    "legal_name": {
+      "value": null,
+      "status": "unavailable",
+      "source": "the site declares no legalName in its Organization JSON-LD"
+    },
+    "location": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "products": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    },
+    "operator": {
+      "value": null,
+      "status": "unavailable",
+      "source": "not parsed by the current phase 2 pipeline"
+    }
+  },
+  "questions": [
+    {
+      "id": "brand_identity",
+      "question": "What is BBC?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-10-20T17:58:45Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_offering",
+      "question": "What does BBC offer?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-10-20T17:58:45Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_products",
+      "question": "What products or services is BBC known for?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-10-20T17:58:45Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_location",
+      "question": "Where is BBC based?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-10-20T17:58:45Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_domain",
+      "question": "What is BBC's official website?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-10-20T17:58:45Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    },
+    {
+      "id": "brand_operator",
+      "question": "Who owns or operates BBC?",
+      "answer": null,
+      "status": "not_evaluated",
+      "provider": "none",
+      "model": null,
+      "queried_at": "2026-10-20T17:58:45Z",
+      "error_category": "provider_not_configured",
+      "elapsed_ms": 0.0,
+      "observation": {
+        "status": "not_evaluated",
+        "signals": [
+          "provider_not_configured"
+        ],
+        "basis": "n/a",
+        "notes": "No answer was available to compare (provider not configured, or the provider call failed) \u2014 this says nothing about the brand."
+      }
+    }
+  ],
+  "summary": {
+    "questions_asked": 6,
+    "questions_evaluated": 0,
+    "not_evaluated": 6,
+    "consistent": 0,
+    "discrepancies": 0
+  },
+  "timing": {
+    "total_ms": 0.0,
+    "query_count": 6
+  },
+  "disclaimer": "Observational only. Not scored, not merged into the Phase 2 audit report, and not evidence about the website's own AI-readiness \u2014 this measures what an assistant already represents, which is provider- and time-dependent and is not guaranteed to be reproducible run to run."
+}

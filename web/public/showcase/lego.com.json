@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "site": "lego.com",
-  "audited_at": "2026-10-05T14:51:57Z",
+  "audited_at": "2026-10-20T17:52:46Z",
   "site_info": {
     "domain": "lego.com",
     "url": "https://lego.com/",
@@ -12,17 +12,17 @@
   },
   "provenance": [],
   "summary": {
-    "total_findings": 1,
-    "critical": 1,
+    "total_findings": 0,
+    "critical": 0,
     "high": 0,
     "medium": 0,
     "readiness_score": null,
     "by_axis": {
       "visibility": {
         "score": null,
-        "findings": 1,
+        "findings": 0,
         "evidence_basis": {
-          "modes_fired": 1,
+          "modes_fired": 0,
           "modes_possible": 9
         }
       },
@@ -52,14 +52,8 @@
       }
     },
     "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. Axes are scored against themselves and never normalised against each other. null means nothing on that axis could be evaluated, and the whole score is null when no page yielded analysable content \u2014 an absent score, never a perfect or a failing one. Adding failure modes changes an axis's denominator, so scores are comparable only between runs with the same schema_version. Opportunities and audit limitations never affect the score.",
-    "headline": "1 issue(s), 1 of them critical, were found across 1 page(s) of lego.com. 1 check(s) could not be completed.",
+    "headline": "No issues were detected across 1 page(s) of lego.com. 2 check(s) could not be completed.",
     "top_priorities": [
-      {
-        "ref": "F-001",
-        "priority": "critical",
-        "summary": "Anti-Bot Challenge Blocks Automated Access",
-        "type": "finding"
-      },
       {
         "ref": "O-001",
         "priority": "high",
@@ -71,31 +65,25 @@
         "priority": "high",
         "summary": "Audit and correct listings on the marketplaces and review sites that rank for your category queries, and make it easy for independent reviewers to be accurate \u2014 publish a press kit with spec sheets and current pricing.",
         "type": "opportunity"
+      },
+      {
+        "ref": "O-003",
+        "priority": "high",
+        "summary": "Keep a fixed panel of realistic prompts \u2014 category questions, direct brand questions, price and fact probes \u2014 and run them across the assistants your customers use on a regular cadence.",
+        "type": "opportunity"
       }
     ]
   },
-  "findings": [
+  "findings": [],
+  "audit_limitations": [
     {
-      "id": "F-001",
-      "title": "Anti-Bot Challenge Blocks Automated Access",
-      "severity": "critical",
-      "evidence": "HTTP 403 carrying the bot-mitigation fingerprint 'attention required! | cloudflare' \u2014 the page a crawler receives is a challenge, not content. (confirmed on 1/1 page(s) attempted)",
-      "suggested_action": {
-        "summary": "Allowlist the AI crawler user-agents in the CDN/WAF bot-management rules (Cloudflare Bot Fight Mode, Akamai and equivalents), verifying by published IP range rather than user-agent string alone. Bot mitigation tuned for scrapers routinely blocks assistants' retrieval fetches, and that block is invisible in robots.txt \u2014 the site looks open and is not.",
-        "priority": "critical"
-      },
+      "title": "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine",
+      "detail": "Could not be verified on 1 of 1 page(s) crawled.",
+      "resolution": "No site change is implied by this finding on its own. Load the URL manually with a plain HTTP client and a generic user-agent to see what was actually returned. If it is a block or challenge page, that is the same access problem HTTP_ERROR_STATUS_BLOCKED describes and the same remediation applies. If it is genuine content, this audit under-counted that page \u2014 a widened or added fingerprint would let it be confirmed as blocked-or-not on a future run rather than left undetermined.",
       "affected_urls": [
         "https://lego.com/"
-      ],
-      "category": "compliance_and_access",
-      "axis": "visibility",
-      "confidence": "high",
-      "source_type": "scored",
-      "signal_type": "field",
-      "parse_status": "ok"
-    }
-  ],
-  "audit_limitations": [
+      ]
+    },
     {
       "title": "No Page Yielded Content This Audit Could Analyse",
       "detail": "Could not be verified on 1 of 1 page(s) crawled.",
@@ -179,7 +167,7 @@
   ],
   "meta": {
     "coverage": {
-      "ontology_version": "2.4",
+      "ontology_version": "2.5",
       "skills_engaged": [
         "pipeline",
         "website-observer"
@@ -187,9 +175,9 @@
       "categories": {
         "rendering_and_execution": {
           "label": "Rendering & Execution Failures",
-          "total_failure_modes": 6,
-          "evaluated_failure_modes": 4,
-          "coverage_pct": 66.7,
+          "total_failure_modes": 7,
+          "evaluated_failure_modes": 5,
+          "coverage_pct": 71.4,
           "not_evaluated": [
             "DYNAMIC_INTERACTION_BARRIER",
             "SHADOW_DOM_ENCAPSULATION"
@@ -238,7 +226,7 @@
           "not_evaluated": []
         }
       },
-      "overall_coverage_pct": 68.3
+      "overall_coverage_pct": 69.0
     },
     "validation": {
       "passed": true,

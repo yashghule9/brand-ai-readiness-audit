@@ -6,5 +6,5 @@ export const SHOWCASE: { slug: string; note: string }[] = [
   { slug: "basecamp.com", note: "A full fifteen-page crawl of a mostly static site" },
   { slug: "bbc.co.uk", note: "Blocks AI crawlers in robots.txt while allowing search engines" },
   { slug: "developer.mozilla.org", note: "A large documentation site" },
-  { slug: "lego.com", note: "Serves a bot challenge, so nothing could be assessed" },
+  { slug: "lego.com", note: "Refuses automated requests, so nothing could be assessed" },
 ];

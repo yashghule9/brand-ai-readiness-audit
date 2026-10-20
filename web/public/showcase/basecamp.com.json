@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "site": "basecamp.com",
-  "audited_at": "2026-10-05T14:51:53Z",
+  "audited_at": "2026-10-20T17:52:42Z",
   "site_info": {
     "domain": "basecamp.com",
     "url": "https://basecamp.com/",
@@ -32,14 +32,14 @@
     "critical": 0,
     "high": 3,
     "medium": 4,
-    "readiness_score": 79,
+    "readiness_score": 80,
     "by_axis": {
       "visibility": {
-        "score": 85,
+        "score": 87,
         "findings": 4,
         "evidence_basis": {
           "modes_fired": 4,
-          "modes_possible": 13
+          "modes_possible": 16
         }
       },
       "staleness": {
@@ -68,7 +68,7 @@
       }
     },
     "score_formula": "Per axis: 100 x (1 - weight of failed modes / weight of that axis's evaluable modes), weights 25 critical / 12 high / 5 medium / 2 low. Axes are scored against themselves and never normalised against each other. null means nothing on that axis could be evaluated, and the whole score is null when no page yielded analysable content \u2014 an absent score, never a perfect or a failing one. Adding failure modes changes an axis's denominator, so scores are comparable only between runs with the same schema_version. Opportunities and audit limitations never affect the score.",
-    "headline": "9 issue(s) were found across 15 page(s) of basecamp.com, most of them on visibility (4 of 9). 1 check(s) could not be completed.",
+    "headline": "9 issue(s) were found across 15 page(s) of basecamp.com, most of them on visibility (4 of 9).",
     "top_priorities": [
       {
         "ref": "F-001",
@@ -128,13 +128,12 @@
       "id": "F-002",
       "title": "Pricing Pages Lack Product/Offer Structured Data",
       "severity": "high",
-      "evidence": "Crawled 15 page(s); 2/15 exhibit this failure mode, e.g. https://basecamp.com/.",
+      "evidence": "Crawled 15 page(s); 1/15 exhibit this failure mode, e.g. https://basecamp.com/cloud-exit.",
       "suggested_action": {
         "summary": "Add Product and Offer JSON-LD to the templates that quote prices: name, sku, image, description, plus offers with price, priceCurrency, availability and priceValidUntil. priceValidUntil matters more than it looks \u2014 it tells a retrieval pipeline when to stop trusting the number instead of quoting a stale one indefinitely.",
         "priority": "high"
       },
       "affected_urls": [
-        "https://basecamp.com/",
         "https://basecamp.com/cloud-exit"
       ],
       "category": "semantic_deficit",
@@ -188,7 +187,7 @@
       "id": "F-005",
       "title": "High Noise-to-Content Ratio Obstructs Data Extraction",
       "severity": "medium",
-      "evidence": "Crawled 15 page(s); 12/15 exhibit this failure mode, e.g. https://basecamp.com/about.",
+      "evidence": "Crawled 15 page(s); 10/15 exhibit this failure mode, e.g. https://basecamp.com/about.",
       "suggested_action": {
         "summary": "Raise the main-content-to-chrome ratio on template pages: wrap primary content in <main>/<article>, place repeated navigation and footer blocks behind semantic landmarks, and stop duplicating the full site menu on every page. Extractors score density per page, so a product page that is 80% navigation reads as a navigation page.",
         "priority": "medium"
@@ -198,10 +197,8 @@
         "https://basecamp.com/accessibility",
         "https://basecamp.com/agents",
         "https://basecamp.com/apps",
-        "https://basecamp.com/before-and-after",
         "https://basecamp.com/books",
         "https://basecamp.com/bootstrapped",
-        "https://basecamp.com/breakfast",
         "https://basecamp.com/classes",
         "https://basecamp.com/cloud-exit",
         "https://basecamp.com/community",
@@ -306,16 +303,7 @@
       "parse_status": "ok"
     }
   ],
-  "audit_limitations": [
-    {
-      "title": "Render-Dependent Checks Could Not Be Verified",
-      "detail": "Could not be verified on 1 of 15 page(s) crawled.",
-      "resolution": "No site change is implied by this finding \u2014 it records what this audit could not verify. Re-run with the render backend installed (pip install braiaudit[render] and playwright install chromium) to confirm or clear the render-dependent checks.",
-      "affected_urls": [
-        "https://basecamp.com/breakfast"
-      ]
-    }
-  ],
+  "audit_limitations": [],
   "opportunities": [
     {
       "priority": "high",
@@ -376,9 +364,10 @@
   ],
   "meta": {
     "coverage": {
-      "ontology_version": "2.4",
+      "ontology_version": "2.5",
       "skills_engaged": [
         "content-cleaner",
+        "crawl-render-audit",
         "offsite-corroboration",
         "pipeline",
         "query-guided-discovery",
@@ -388,13 +377,10 @@
       "categories": {
         "rendering_and_execution": {
           "label": "Rendering & Execution Failures",
-          "total_failure_modes": 6,
-          "evaluated_failure_modes": 4,
-          "coverage_pct": 66.7,
-          "not_evaluated": [
-            "DYNAMIC_INTERACTION_BARRIER",
-            "SHADOW_DOM_ENCAPSULATION"
-          ]
+          "total_failure_modes": 7,
+          "evaluated_failure_modes": 7,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
         },
         "content_noise": {
           "label": "Content Noise & Layout Distortions",
@@ -406,11 +392,9 @@
         "discovery_and_pathing": {
           "label": "Crawl Discovery & Pathing Failures",
           "total_failure_modes": 6,
-          "evaluated_failure_modes": 5,
-          "coverage_pct": 83.3,
-          "not_evaluated": [
-            "JAVASCRIPT_NAVIGATION_TRAP"
-          ]
+          "evaluated_failure_modes": 6,
+          "coverage_pct": 100.0,
+          "not_evaluated": []
         },
         "semantic_deficit": {
           "label": "Semantic Deficit & Data Integrity",
@@ -427,7 +411,7 @@
           "not_evaluated": []
         }
       },
-      "overall_coverage_pct": 92.7
+      "overall_coverage_pct": 100.0
     },
     "validation": {
       "passed": true,
@@ -483,7 +467,7 @@
       "stopped_early": false,
       "note": "",
       "render_triggered": true,
-      "pages_rendered": 0
+      "pages_rendered": 1
     }
   }
 }
