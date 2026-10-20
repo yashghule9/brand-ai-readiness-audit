@@ -1,0 +1,42 @@
+# Production overrides, layered on docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# See docs/DEPLOY.md.
+services:
+  app:
+    # Not published: only Caddy can reach the app. That is what makes
+    # trusting X-Forwarded-For safe below, and so what makes the per-visitor
+    # rate limit see real visitor addresses instead of Caddy's.
+    ports: !reset []
+    command:
+      - uvicorn
+      - braiaudit.server:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --proxy-headers
+      - --forwarded-allow-ips=*
+    environment:
+      # Renders off on the public demo: faster, lighter audits on a small
+      # box. Render-dependent checks are reported as a limitation, not
+      # skipped silently. Set to 3 for full rendering (needs ~2 GB RAM).
+      BRAIAUDIT_MAX_RENDER_PAGES: "0"
+      BRAIAUDIT_AUDITS_PER_HOUR: "5"
+      BRAIAUDIT_MAX_QUEUE: "10"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"      # needed for the certificate challenge and the HTTP->HTTPS redirect
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in .env, e.g. 13.233.10.20.sslip.io}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # certificates: losing these forces re-issuing
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

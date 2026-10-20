@@ -1,0 +1,11 @@
+# HTTPS in front of the app. SITE_ADDRESS comes from .env: with no domain,
+# use the server's public IP with .sslip.io appended (13.233.10.20.sslip.io),
+# which resolves to that IP. Caddy fetches and renews the certificate itself.
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy app:8000 {
+		# Live crawl progress is server-sent events: pass each one through
+		# immediately instead of buffering the response.
+		flush_interval -1
+	}
+}
