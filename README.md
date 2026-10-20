@@ -45,7 +45,7 @@ Recommend-only: the audit performs read-only HTTP GETs, respects
    source reads as "unknown", never as evidence against the brand.
 5. **Score and Explain** — `failure-diagnostics` (`braiaudit.ontology` plus
    `references/ontology.yaml`) is the only place signals become verdicts:
-   41 failure modes (38 scored defects + 3 unscored limitations) across 5
+   42 failure modes (38 scored defects + 4 unscored limitations) across 5
    categories and 4 axes, each finding carrying measured evidence, a
    severity, a confidence, and a mechanism-sound suggested action.
    `braiaudit.report` then assembles the final floor-schema JSON: findings
@@ -74,7 +74,37 @@ pip install -e .
 braiaudit audit example.com                    # full JSON report to stdout
 braiaudit audit example.com --max-pages 5 --max-render-pages 3 --query "what does this cost"
 pip install -e ".[render]" && playwright install chromium   # optional rendering
-pytest -q                                      # 247 tests, no network required
+pytest -q                                      # 281 tests, no network required
 ```
+
+## Web app
+
+A React front end over the same engine: type a domain, watch each page
+arrive as it is crawled, then read the report. FastAPI (`braiaudit.server`)
+schedules `run_audit` and streams its progress over server-sent events; the
+audit itself is unchanged, so a site scores the same in the browser as on the
+CLI. When nothing could be read, the report says "Not assessed" rather than
+showing a number.
+
+```bash
+pip install -e ".[web]"
+uvicorn braiaudit.server:app --port 8000      # API
+cd web && npm install && npm run dev          # UI at localhost:5173, proxies /api
+```
+
+Or `npm run build` once in `web/` and the API serves the UI itself at
+`localhost:8000`. `BRAIAUDIT_MAX_RENDER_PAGES` sets the render budget
+(default 3; `0` turns rendering off) and `BRAIAUDIT_DB` the SQLite job store.
+
+**Why the crawler refuses private addresses.** As a CLI, whoever picks the
+URL also reads the output. Behind a form that inverts: a stranger picks the
+URL and the report hands back the response, since a page's title becomes a
+brand-name candidate and its body feeds the evidence. So every request checks
+the address the hostname *resolves* to, not the name itself (an ordinary
+domain can point at `127.0.0.1`), and rejects loopback, private, link-local
+(including cloud metadata at `169.254.169.254`) and similar ranges. It runs in
+a transport adapter, so it re-checks every redirect hop as well.
+`AuditOptions(allow_private_hosts=True)` opts out, for auditing your own local
+dev server. Known ceiling: DNS rebinding between check and connect.
 
 License: MIT — see [LICENSE](LICENSE). Change history: [CHANGELOG.md](CHANGELOG.md).
