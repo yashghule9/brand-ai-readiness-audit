@@ -241,8 +241,18 @@ function Findings({ report }: { report: ReportData }) {
 }
 
 function Actions({ report }: { report: ReportData }) {
+  // When nothing could be read, the only advice that matters is to make the
+  // site readable. General advice stays available but starts collapsed, so it
+  // can't bury that one action under ten generic ones.
+  const assessed = report.summary.readiness_score !== null;
   return (
     <>
+      {!assessed && report.findings.length === 0 && (
+        <p className="empty">
+          No page could be read, so there is nothing site-specific to fix yet. Make the site readable
+          to automated visitors first, then run the audit again.
+        </p>
+      )}
       {report.findings.length > 0 && (
         <section className="actions">
           <h2>Fixes for what this audit found</h2>
@@ -265,14 +275,19 @@ function Actions({ report }: { report: ReportData }) {
           <p className="muted">
             Recommended for most sites whatever this audit found. Not derived from evidence on this site.
           </p>
-          <ol>
-            {report.opportunities.map((o) => (
-              <li key={o.id} className="advice">
-                <p>{o.summary}</p>
-                {o.rationale && <p className="muted">{o.rationale}</p>}
-              </li>
-            ))}
-          </ol>
+          <details className="advice-toggle" open={assessed}>
+            <summary>
+              {assessed ? "General advice" : "Show general advice"} ({report.opportunities.length})
+            </summary>
+            <ol>
+              {report.opportunities.map((o) => (
+                <li key={o.id} className="advice">
+                  <p>{o.summary}</p>
+                  {o.rationale && <p className="muted">{o.rationale}</p>}
+                </li>
+              ))}
+            </ol>
+          </details>
         </section>
       )}
     </>

@@ -815,3 +815,17 @@ p {
     text-align: left;
   }
 }
+
+.advice-toggle {
+  margin-top: 1rem;
+}
+
+.advice-toggle > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.advice-toggle[open] > summary {
+  margin-bottom: 0.25rem;
+}
