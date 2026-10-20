@@ -29,3 +29,7 @@ Thumbs.db
 
 # Frontend
 node_modules/
+
+# Secrets: API keys live here, never in git
+.env
+.env.*

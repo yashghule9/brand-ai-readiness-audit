@@ -13,3 +13,5 @@ dist
 web/node_modules
 web/dist
 submisiion-rules.txt
+.env
+.env.*
