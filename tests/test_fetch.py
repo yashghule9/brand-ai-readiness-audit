@@ -758,3 +758,16 @@ def test_public_address_is_allowed():
 
     _assert_public_address("https://93.184.216.34/")
     _assert_public_address("http://[2606:2800:220:1:248:1893:25c8:1946]/")
+
+
+def test_cloudflare_challenge_is_recognised_by_its_header():
+    """Cloudflare signals a challenge with the header *name* cf-mitigated. The
+    detector only searched header values, so this never matched and LeetCode's
+    challenge was reported as an unconfirmed 403 instead of a block."""
+    from braiaudit.fetch import _detect_anti_bot
+
+    body = "<html><head><title>Something unfamiliar</title></head></html>"
+    assert _detect_anti_bot(403, {"CF-Mitigated": "challenge"}, body) == "cf-mitigated: challenge"
+    # Only a challenge value counts, and only on the statuses it applies to.
+    assert _detect_anti_bot(403, {"cf-mitigated": "block"}, body) is None
+    assert _detect_anti_bot(200, {"cf-mitigated": "challenge"}, body) is None

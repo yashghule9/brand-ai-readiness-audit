@@ -401,8 +401,27 @@ def _headline(
     if not pages_crawled:
         return (
             f"No pages of {site} could be crawled, so no readiness assessment "
-            "was possible. See audit_limitations."
+            "was possible. See the audit limitations."
         )
+    if readiness["score"] is None:
+        # Pages were fetched but none was readable as the site's content (a
+        # challenge, an error stub, a block). "No issues were detected" here
+        # sat directly under "Not assessed" and read as a clean bill of
+        # health for a site this audit never actually saw.
+        found = (
+            f"{len(findings)} issue(s)"
+            + (f", {critical} of them critical," if critical else "")
+            + " were found, but no page"
+            if findings
+            else "No page"
+        )
+        head = (
+            f"{found} of {site} returned content this audit could analyse, "
+            "so there is no readiness score."
+        )
+        if limitations:
+            head += f" {len(limitations)} check(s) could not be completed."
+        return head
     if not findings:
         head = f"No issues were detected across {pages_crawled} page(s) of {site}."
     else:

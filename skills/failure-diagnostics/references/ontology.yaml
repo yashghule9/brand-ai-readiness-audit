@@ -1028,11 +1028,10 @@ failure_modes:
     remediation: >
       No site change is implied by this finding on its own. Load the URL
       manually with a plain HTTP client and a generic user-agent to see what
-      was actually returned. If it is a block or challenge page, that is the
-      same access problem HTTP_ERROR_STATUS_BLOCKED describes and the same
-      remediation applies. If it is genuine content, this audit under-counted
-      that page — a widened or added fingerprint would let it be confirmed
-      as blocked-or-not on a future run rather than left undetermined.
+      was actually returned. If it is a block or challenge page, AI crawlers
+      are almost certainly stopped by it too: check which automated
+      user-agents your CDN or firewall lets through. If it is genuine
+      content, this audit could not tell, and that page went unread.
     recovery_strategy: manual_investigation
     recommended_tool: none
     audit_finding_title: "Error-Status Response Could Not Be Confirmed As Blocked Or Genuine"

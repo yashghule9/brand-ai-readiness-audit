@@ -61,7 +61,6 @@ _NON_HTML_EXTENSIONS = (
 )
 
 _ANTI_BOT_FINGERPRINTS = (
-    "cf-mitigated",
     "checking your browser",
     "attention required! | cloudflare",
     "akamai",
@@ -460,6 +459,15 @@ def _detect_anti_bot(status_code: int, headers: dict[str, str], body: str) -> st
     was actually seen instead of restating the signal name."""
     if status_code not in (403, 503):
         return None
+    # Cloudflare marks its own challenge responses with a header *name*,
+    # `cf-mitigated: challenge`. The haystack below holds header values only,
+    # so the "cf-mitigated" fingerprint that used to sit in the list could
+    # never match, and a real Cloudflare challenge (LeetCode's, for one) was
+    # reported as merely "unconfirmed". Checked exactly rather than by adding
+    # every header name to the haystack, which would also start matching an
+    # ordinary 403 from any host that merely sends an Akamai or CDN header.
+    if {k.lower(): v for k, v in headers.items()}.get("cf-mitigated", "").lower() == "challenge":
+        return "cf-mitigated: challenge"
     haystack = (body[:5000] + " " + " ".join(headers.values())).lower()
     return next((fp for fp in _ANTI_BOT_FINGERPRINTS if fp in haystack), None)
 

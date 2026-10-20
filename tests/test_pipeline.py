@@ -429,3 +429,25 @@ def test_a_page_failing_after_launch_is_not_reported_as_a_missing_browser(monkey
     no_browser = render_mod.render("https://example.com/")
     assert no_browser["signals"] == ["render_backend_unavailable"]
     assert title_for(no_browser) == ["Render-Dependent Checks Could Not Be Verified"]
+
+
+@__import__("responses").activate
+def test_headline_never_says_no_issues_when_nothing_was_analysed():
+    """The headline read "No issues were detected" directly under "Not
+    assessed": a clean bill of health for a site the audit never saw."""
+    import responses
+
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+    responses.add(responses.GET, "https://example.com/",
+                  body="<html><body>Access denied for this request.</body></html>",
+                  status=403, content_type="text/html")
+
+    report = run_audit("example.com", options=AuditOptions(
+        max_pages=1, max_render_pages=0, corroborate=False))
+    headline = report["summary"]["headline"]
+
+    assert report["summary"]["readiness_score"] is None
+    assert "No issues were detected" not in headline
+    assert "no readiness score" in headline

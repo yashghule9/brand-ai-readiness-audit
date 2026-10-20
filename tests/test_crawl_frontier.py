@@ -627,7 +627,7 @@ def test_zero_page_unreachable_audit_abstains_from_scoring():
     # always said "See audit_limitations" here; until now that array was empty.
     limitations = report["audit_limitations"]
     assert [lim["title"] for lim in limitations] == [_UNREACHABLE_LIMITATION]
-    assert "See audit_limitations" in report["summary"]["headline"]
+    assert "See the audit limitations" in report["summary"]["headline"]
 
     # A page we could not read is not a defect we may attribute to the site.
     assert report["findings"] == []
