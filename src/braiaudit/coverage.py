@@ -75,6 +75,7 @@ SIGNAL_SOURCES: dict[str, str] = {
     "entity_record_absent": "offsite-corroboration",
     "entity_record_not_reciprocal": "offsite-corroboration",
     "render_backend_unavailable": "pipeline",
+    "render_budget_exhausted": "pipeline",
     "duplicate_content_detected": "pipeline",
     "no_analysable_page_evidence": "pipeline",
 }

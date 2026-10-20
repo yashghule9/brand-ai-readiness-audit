@@ -349,7 +349,9 @@ def run_audit(
             page_findings.extend(
                 _diagnose(
                     url,
-                    {"signals": ["render_backend_unavailable"]},
+                    # Not render_backend_unavailable: the backend may be fine,
+                    # and the two gaps need opposite fixes.
+                    {"signals": ["render_budget_exhausted"]},
                     evidence_hint=(
                         "Page appears client-side-rendered but the render budget "
                         f"({options.max_render_pages} page(s)) was already exhausted "

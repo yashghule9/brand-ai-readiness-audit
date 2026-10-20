@@ -357,3 +357,45 @@ def test_allow_private_hosts_reaches_a_local_target():
     assert blocked["http_status"] is None
     assert allowed["http_status"] == 200
     assert "My Dev Site" in (allowed.get("raw_html") or "")
+
+
+@__import__("responses").activate
+def test_render_budget_and_missing_backend_are_reported_as_different_gaps(monkeypatch):
+    """One signal used to cover both, so a user with a working browser was
+    told to install one when the real cause was the per-audit render budget.
+    The two gaps need opposite fixes and must stay distinguishable."""
+    import responses
+
+    from braiaudit import render as render_mod
+    from braiaudit.pipeline import AuditOptions, run_audit
+
+    # Static HTML that looks client-side-rendered, so a render is wanted.
+    shell = ('<html><head><title>T</title></head><body><div id="root"></div>'
+             + "<script>x</script>" * 20 + "</body></html>")
+
+    def stub():
+        responses.add(responses.GET, "https://example.com/robots.txt", status=404)
+        responses.add(responses.GET, "https://example.com/sitemap.xml", status=404)
+        responses.add(responses.GET, "https://example.com/", body=shell, status=200,
+                      content_type="text/html")
+
+    def limitation_titles(report):
+        return {lim["title"] for lim in report["audit_limitations"]}
+
+    budget = "Some Pages Were Not Rendered Within This Audit's Render Budget"
+    missing = "Render-Dependent Checks Could Not Be Verified"
+
+    # Budget spent (here: zero) — the browser is irrelevant.
+    stub()
+    spent = run_audit("example.com", options=AuditOptions(
+        max_pages=1, max_render_pages=0, corroborate=False))
+    assert budget in limitation_titles(spent)
+    assert missing not in limitation_titles(spent)
+
+    # Budget available but no browser.
+    monkeypatch.setattr(render_mod, "_PLAYWRIGHT_AVAILABLE", False)
+    stub()
+    absent = run_audit("example.com", options=AuditOptions(
+        max_pages=1, max_render_pages=3, corroborate=False))
+    assert missing in limitation_titles(absent)
+    assert budget not in limitation_titles(absent)

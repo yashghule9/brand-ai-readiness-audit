@@ -41,7 +41,7 @@
 # runtime — but a signal it lists must actually be emitted by some producer
 # or it will simply never fire.
 
-ontology_version: "2.4"
+ontology_version: "2.5"
 
 categories:
   rendering_and_execution:
@@ -171,10 +171,11 @@ failure_modes:
     signals: [render_backend_unavailable]
     description: >
       A page was flagged as likely client-side-rendered or interaction-
-      gated, but no headless-render backend was available (or the render
-      budget for this audit was exhausted), so JavaScript-dependent
-      content could not be confirmed either way. This is an honest
-      coverage gap, not a finding about the site itself.
+      gated, but no headless-render backend was available, so
+      JavaScript-dependent content could not be confirmed either way. This
+      is an honest coverage gap, not a finding about the site itself. (A
+      backend that is installed but whose per-audit render budget ran out
+      is a different gap with a different fix: RENDER_BUDGET_EXHAUSTED.)
     axis: visibility
     remediation: >
       No site change is implied by this finding — it records what this audit could
@@ -184,6 +185,30 @@ failure_modes:
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright
     audit_finding_title: "Render-Dependent Checks Could Not Be Verified"
+
+  RENDER_BUDGET_EXHAUSTED:
+    category: rendering_and_execution
+    kind: limitation
+    severity: medium
+    match_mode: all
+    signals: [render_budget_exhausted]
+    description: >
+      The render backend works, but each audit renders only a fixed number
+      of pages in a headless browser, because rendering costs seconds and
+      memory per page. Further pages that also looked client-side-rendered
+      or interaction-gated were read as static HTML only, so their
+      JavaScript-dependent content was neither confirmed nor ruled out. The
+      sampled renders usually settle the question for the whole site, since
+      rendering behaviour is a template-level property, not a per-page one.
+    axis: visibility
+    remediation: >
+      No site change is implied by this finding — it records what this audit
+      did not render. To check these pages too, re-run with a higher render
+      budget: --max-render-pages on the CLI, or BRAIAUDIT_MAX_RENDER_PAGES for
+      the web app. Each extra page adds roughly 20 seconds.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright
+    audit_finding_title: "Some Pages Were Not Rendered Within This Audit's Render Budget"
 
   # ---------------------------------------------------------------------
   # 2. Content Noise & Layout Distortions
