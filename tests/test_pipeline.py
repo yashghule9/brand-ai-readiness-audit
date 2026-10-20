@@ -399,3 +399,33 @@ def test_render_budget_and_missing_backend_are_reported_as_different_gaps(monkey
         max_pages=1, max_render_pages=3, corroborate=False))
     assert missing in limitation_titles(absent)
     assert budget not in limitation_titles(absent)
+
+
+def test_a_page_failing_after_launch_is_not_reported_as_a_missing_browser(monkeypatch):
+    """render() used to turn every exception into "install the render
+    backend", including a page that broke mid-render after Chromium had
+    launched fine. Where it failed decides which gap is true."""
+    from braiaudit import render as render_mod
+    from braiaudit.pipeline import _diagnose
+
+    monkeypatch.setattr(render_mod, "_PLAYWRIGHT_AVAILABLE", True)
+
+    def launched_then_broke(*args):
+        args[-1]["launched"] = True  # the state flag render() passes in
+        raise RuntimeError("Execution context was destroyed")
+
+    def never_launched(*args):
+        raise RuntimeError("Executable doesn't exist")
+
+    def title_for(result):
+        return [f["title"] for f in _diagnose("https://example.com/", result)]
+
+    monkeypatch.setattr(render_mod, "_render_with_browser", launched_then_broke)
+    page_failed = render_mod.render("https://example.com/")
+    assert page_failed["signals"] == ["render_page_failed"]
+    assert title_for(page_failed) == ["Some Pages Could Not Be Rendered"]
+
+    monkeypatch.setattr(render_mod, "_render_with_browser", never_launched)
+    no_browser = render_mod.render("https://example.com/")
+    assert no_browser["signals"] == ["render_backend_unavailable"]
+    assert title_for(no_browser) == ["Render-Dependent Checks Could Not Be Verified"]

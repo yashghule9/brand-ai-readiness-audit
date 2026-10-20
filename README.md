@@ -45,7 +45,7 @@ Recommend-only: the audit performs read-only HTTP GETs, respects
    source reads as "unknown", never as evidence against the brand.
 5. **Score and Explain** — `failure-diagnostics` (`braiaudit.ontology` plus
    `references/ontology.yaml`) is the only place signals become verdicts:
-   42 failure modes (38 scored defects + 4 unscored limitations) across 5
+   43 failure modes (38 scored defects + 5 unscored limitations) across 5
    categories and 4 axes, each finding carrying measured evidence, a
    severity, a confidence, and a mechanism-sound suggested action.
    `braiaudit.report` then assembles the final floor-schema JSON: findings
@@ -74,7 +74,7 @@ pip install -e .
 braiaudit audit example.com                    # full JSON report to stdout
 braiaudit audit example.com --max-pages 5 --max-render-pages 3 --query "what does this cost"
 pip install -e ".[render]" && playwright install chromium   # optional rendering
-pytest -q                                      # 281 tests, no network required
+pytest -q                                      # 283 tests, no network required
 ```
 
 ## Web app

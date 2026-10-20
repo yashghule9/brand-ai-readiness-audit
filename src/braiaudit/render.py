@@ -65,6 +65,18 @@ def _unavailable(url: str, reason: str) -> dict[str, Any]:
     return result
 
 
+def _page_failed(url: str, reason: str) -> dict[str, Any]:
+    logger.warning("render failed for %s after the browser launched: %s", url, reason)
+    result = {
+        "url": url,
+        "available": False,
+        "render_timed_out": False,
+        "signals": ["render_page_failed"],
+    }
+    validate(result, "crawl-render-audit")
+    return result
+
+
 def render(
     url: str,
     pre_render_text_length: int | None = None,
@@ -85,10 +97,14 @@ def render(
     if not _PLAYWRIGHT_AVAILABLE:
         return _unavailable(url, "playwright is not installed")
 
-    # Any browser-side failure — missing or broken binaries, a sandbox that
-    # forbids launching one, a driver that never comes up — degrades to the
-    # documented coverage gap. Rendering is an optional enhancement and is
-    # never allowed to take the whole audit down with it.
+    # Any browser-side failure degrades to a coverage gap: rendering is an
+    # optional enhancement and is never allowed to take the whole audit down.
+    # But *which* gap matters, because the fixes are opposite. Before launch
+    # (binaries missing, a sandbox that forbids a browser, a driver that never
+    # starts) there is no usable browser. After launch the browser is fine and
+    # this one page failed — commonly a navigation or reload mid-render — and
+    # telling that user to install a browser they already have is wrong.
+    state = {"launched": False}
     try:
         return _render_with_browser(
             url,
@@ -98,9 +114,11 @@ def render(
             drive_scroll,
             drive_interactions,
             traverse_shadow_dom,
+            state,
         )
     except Exception as exc:  # noqa: BLE001 - degrade on anything the backend raises
-        return _unavailable(url, f"{type(exc).__name__}: {exc}")
+        reason = f"{type(exc).__name__}: {exc}"
+        return _page_failed(url, reason) if state["launched"] else _unavailable(url, reason)
 
 
 def _render_with_browser(
@@ -111,12 +129,15 @@ def _render_with_browser(
     drive_scroll: bool,
     drive_interactions: bool,
     traverse_shadow_dom: bool,
+    state: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """The real render pass. Exiting the sync_playwright context tears the
     driver (and any browser it started) down, so a raise here cannot leak a
     browser process — the caller turns it into a coverage gap."""
     with sync_playwright() as p:
         browser = p.chromium.launch(timeout=_LAUNCH_TIMEOUT_MS)
+        if state is not None:
+            state["launched"] = True
         page = browser.new_page(user_agent=user_agent)
         render_timed_out = False
         try:

@@ -41,7 +41,7 @@
 # runtime — but a signal it lists must actually be emitted by some producer
 # or it will simply never fire.
 
-ontology_version: "2.5"
+ontology_version: "2.6"
 
 categories:
   rendering_and_execution:
@@ -209,6 +209,31 @@ failure_modes:
     recovery_strategy: crawl-render-audit
     recommended_tool: playwright
     audit_finding_title: "Some Pages Were Not Rendered Within This Audit's Render Budget"
+
+  RENDER_PAGE_FAILED:
+    category: rendering_and_execution
+    kind: limitation
+    severity: medium
+    match_mode: all
+    signals: [render_page_failed]
+    description: >
+      The headless browser launched normally, but rendering this particular
+      page failed partway through, so its JavaScript-dependent content was
+      neither confirmed nor ruled out. The usual cause is the page
+      navigating, reloading or replacing its document while it was being
+      measured, which is often transient. This is a gap in what the audit
+      saw, not a finding about the site, and it does not mean the render
+      backend is missing.
+    axis: visibility
+    remediation: >
+      No site change is implied by this finding on its own. Re-run the audit:
+      a transient failure usually clears. If the same page fails every time,
+      load it in a normal browser and check whether it redirects or reloads
+      itself on load — a page that keeps replacing its own document is hard
+      for any automated reader, assistants included, to capture.
+    recovery_strategy: crawl-render-audit
+    recommended_tool: playwright
+    audit_finding_title: "Some Pages Could Not Be Rendered"
 
   # ---------------------------------------------------------------------
   # 2. Content Noise & Layout Distortions
